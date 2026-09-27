@@ -34,7 +34,7 @@ def place_order(db, customer, lines, shipping_cents, payment_method):
             product = line["product"]
             cur = db.execute(
                 "UPDATE products SET stock_qty = stock_qty - ?, updated_at = datetime('now') "
-                "WHERE id = ? AND stock_qty >= ? AND active = 1",
+                "WHERE id = ? AND stock_qty >= ? AND active = 1 AND quote_only = 0",
                 (line["qty"], product["id"], line["qty"]),
             )
             if cur.rowcount != 1:

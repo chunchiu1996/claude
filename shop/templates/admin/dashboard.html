@@ -3,6 +3,18 @@
 {% block admin_title %}Dashboard{% endblock %}
 {% block admin_content %}
 <h1>Dashboard</h1>
+{% if not stats.sku_count %}
+<section class="panel getting-started">
+  <h2 class="h3">Getting started: load your real products</h2>
+  <ol>
+    <li>Add each factory under <a href="{{ url_for('admin.supplier_form') }}">Factories → Add factory</a> and set its commission.</li>
+    <li><a href="{{ url_for('admin.import_template_xlsx') }}">Download the Excel template</a> (English / 中文) and send it to each factory.</li>
+    <li>When their shipment arrives, upload the filled-in file on <a href="{{ url_for('admin.import_view') }}">Import</a> with the container number.</li>
+    <li>Add product photos (open each product and upload an image, or put photo links in the spreadsheet).</li>
+    <li>Send each factory its private dashboard link from its factory page.</li>
+  </ol>
+</section>
+{% endif %}
 <div class="stats">
   <div class="stat"><span>Sales, last 30 days</span><strong>{{ stats.revenue_30d|money }}</strong><em>{{ stats.orders_30d }} orders</em></div>
   <a class="stat" href="{{ url_for('admin.orders_list', status='paid') }}"><span>Paid, to fulfill</span><strong>{{ stats.to_fulfill }}</strong><em>orders</em></a>
@@ -30,7 +42,7 @@
     {% if inquiries %}
     <div class="section-head"><h2 class="h3">New inquiries</h2></div>
     <table class="data">
-      {% for i in inquiries %}<tr><td>{{ "🏭 Factory" if i.kind == 'supplier' else "Quote" }}</td><td>{{ i.company or i.name }}</td><td class="small muted">{{ i.created_at[:10] }}</td></tr>{% endfor %}
+      {% for i in inquiries %}<tr><td><a href="{{ url_for('admin.inquiry_detail', inquiry_id=i.id) }}">{{ i.reference or ("#" ~ i.id) }}</a></td><td>{{ "Factory" if i.kind == 'supplier' else "Quote" }}</td><td>{{ i.company or i.name }}</td><td class="small muted">{{ i.created_at[:10] }}</td></tr>{% endfor %}
     </table>
     {% endif %}
   </section>

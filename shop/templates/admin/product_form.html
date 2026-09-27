@@ -28,7 +28,7 @@
     </select>
   </label>
   <div class="grid-3">
-    {{ field("price", "Price per unit ($)", form, errors, required=true, placeholder="42.50") }}
+    {{ field("price", "Price per unit ($)", form, errors, placeholder="42.50") }}
     {{ field("compare_at", "Typical retail ($)", form, errors, placeholder="66.00") }}
     {{ field("moq", "Minimum order", form, errors, type="number", attrs='min="1"') }}
   </div>
@@ -54,6 +54,7 @@
   {% endif %}
   <label class="check"><input type="checkbox" name="active" value="1" {% if form.get('active') %}checked{% endif %}> Visible in shop</label>
   <label class="check"><input type="checkbox" name="featured" value="1" {% if form.get('featured') %}checked{% endif %}> Featured on home page</label>
+  <label class="check"><input type="checkbox" name="quote_only" value="1" {% if form.get('quote_only') %}checked{% endif %}> <span><strong>Quote only</strong>: hide the price. Customers add it to a quote list and send us a request (price can be left blank).</span></label>
   <button class="btn btn-primary">{{ "Save changes" if product else "Create product" }}</button>
 </form>
 

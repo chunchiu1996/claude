@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS products (
     image_url TEXT,
     active INTEGER NOT NULL DEFAULT 1,
     featured INTEGER NOT NULL DEFAULT 0,
+    quote_only INTEGER NOT NULL DEFAULT 0,   -- hide price; customers request a quote
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -115,6 +116,9 @@ CREATE INDEX IF NOT EXISTS idx_order_items_supplier ON order_items(supplier_id);
 CREATE TABLE IF NOT EXISTS inquiries (
     id INTEGER PRIMARY KEY,
     kind TEXT NOT NULL DEFAULT 'quote' CHECK (kind IN ('quote', 'supplier')),
+    reference TEXT,                  -- e.g. Q-260927-01234, quoted by the customer on WhatsApp/email
+    access_token TEXT,               -- lets the customer reopen their request page
+    contact_pref TEXT,               -- email | whatsapp | phone | wechat
     name TEXT NOT NULL,
     email TEXT NOT NULL,
     phone TEXT,
@@ -127,6 +131,18 @@ CREATE TABLE IF NOT EXISTS inquiries (
         CHECK (status IN ('new', 'contacted', 'quoted', 'won', 'lost')),
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Products listed on a quote request (no prices: we reply with pricing).
+CREATE TABLE IF NOT EXISTS inquiry_items (
+    id INTEGER PRIMARY KEY,
+    inquiry_id INTEGER NOT NULL REFERENCES inquiries(id) ON DELETE CASCADE,
+    product_id INTEGER REFERENCES products(id),
+    sku TEXT NOT NULL,
+    name TEXT NOT NULL,
+    unit TEXT,
+    qty INTEGER NOT NULL CHECK (qty > 0)
+);
+CREATE INDEX IF NOT EXISTS idx_inquiry_items_inquiry ON inquiry_items(inquiry_id);
 
 -- Money sent to a factory for its share of consignment sales.
 CREATE TABLE IF NOT EXISTS payouts (

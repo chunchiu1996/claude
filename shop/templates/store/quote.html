@@ -1,38 +1,67 @@
 {% extends "base.html" %}
-{% from "_macros.html" import field, textarea %}
-{% block title %}Contractor & bulk quotes · {{ site.name }}{% endblock %}
+{% from "_macros.html" import field, textarea, product_image %}
+{% block title %}Request a quote · {{ site.name }}{% endblock %}
 {% block content %}
-<div class="two-col">
-  <div>
-    <h1>Contractor &amp; bulk pricing</h1>
-    <p class="lead">Buying by the pallet, outfitting a multi-unit project, or stocking a store? Send us your list and we'll reply within one business day with project pricing, availability and delivery options.</p>
-    <ul class="checks">
-      <li>Pallet and container-load pricing</li>
-      <li>Mixed orders across flooring, tile, cabinets and fixtures</li>
-      <li>Freight delivery outside our local area</li>
-      <li>Special orders sourced directly from our factory partners</li>
-    </ul>
-  </div>
-  <form method="post" class="form-card" novalidate>
-    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-    <div class="grid-2">
-      {{ field("name", "Your name", data, errors, required=true) }}
-      {{ field("company", "Company", data, errors) }}
-      {{ field("email", "Email", data, errors, type="email", required=true) }}
-      {{ field("phone", "Phone", data, errors, type="tel") }}
+<h1>Request a quote</h1>
+<p class="lead muted">No prices needed. Tell us what you want and how many, and we'll reply with our best price and availability{% if site.whatsapp %} by WhatsApp or email{% endif %}, usually within one business day.</p>
+
+<form method="post" class="quote-layout" novalidate>
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <section class="form-card">
+    <h2 class="h3">1. Products{% if lines %} <span class="muted small">({{ lines|length }})</span>{% endif %}</h2>
+    {% if lines %}
+    <div class="table-wrap">
+    <table class="cart-table">
+      <thead><tr><th colspan="2">Product</th><th>Quantity</th><th></th></tr></thead>
+      <tbody>
+      {% for line in lines %}{% set p = line.product %}
+        <tr>
+          <td class="thumb">{{ product_image(p, "thumb") }}</td>
+          <td><a href="{{ url_for('store.product', slug=p.slug) }}">{{ p.name }}</a>
+            <div class="small muted">SKU {{ p.sku }}{% if p.unit_note %} · {{ p.unit_note }}{% endif %}</div>
+            <div class="small {{ 'muted' if p.stock_qty > 0 else 'warn' }}">{{ "{:,}".format(p.stock_qty) ~ " in stock" if p.stock_qty > 0 else "Out of stock, ask us about the next shipment" }}</div></td>
+          <td class="nowrap"><input class="qty" type="number" name="qty_{{ p.id }}" value="{{ line.qty }}" min="0" aria-label="Quantity"> <span class="small muted">{{ p.unit|plural(line.qty) }}</span></td>
+          <td><button class="link-btn" name="remove" value="{{ p.id }}" formaction="{{ url_for('store.quote_update') }}" formnovalidate>Remove</button></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
     </div>
+    <p class="small"><button class="link-btn" formaction="{{ url_for('store.quote_update') }}" formnovalidate>Update quantities</button> · <a href="{{ url_for('store.catalog') }}">Add more products</a></p>
+    {% else %}
+    <p class="muted">Your quote list is empty. <a href="{{ url_for('store.catalog') }}">Browse products</a> and click <strong>Add to quote list</strong>, or just describe what you need below.</p>
+    {% endif %}
+    {{ textarea("items", "Anything else? Products we don't list, sizes, colors, quantities" if lines else "What do you need? Product, size/color and quantity", data, errors, rows=3, placeholder="e.g. 600 sq ft of grey wood-look tile, 12x24; 8 bathroom vanities 36 in") }}
+  </section>
+
+  <section class="form-card">
+    <h2 class="h3">2. Your details</h2>
+    <div class="grid-2">
+      {{ field("name", "Your name", data, errors, required=true, attrs='autocomplete="name"') }}
+      {{ field("company", "Company (optional)", data, errors, attrs='autocomplete="organization"') }}
+      {{ field("email", "Email", data, errors, type="email", attrs='autocomplete="email"') }}
+      {{ field("phone", "Phone / WhatsApp / WeChat ID", data, errors, type="tel", attrs='autocomplete="tel"') }}
+    </div>
+    <fieldset class="field">
+      <span>How should we send your quote?</span>
+      <div class="chip-row">
+        {% for key, label in contact_prefs.items() %}
+          <label class="chip"><input type="radio" name="contact_pref" value="{{ key }}" {% if data.get('contact_pref') == key %}checked{% endif %}> {{ label }}</label>
+        {% endfor %}
+      </div>
+    </fieldset>
     <div class="grid-2">
       <label class="field"><span>I am a…</span>
         <select name="role">
-          <option value="">Select</option>
+          <option value="">Select (optional)</option>
           {% for t in customer_types %}<option {% if data.get('role') == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
         </select>
       </label>
-      {{ field("location", "Project ZIP code", data, errors) }}
+      {{ field("location", "Delivery ZIP code (optional)", data, errors, attrs='autocomplete="postal-code"') }}
     </div>
-    {{ textarea("items", "What do you need? (SKU or description and quantity)", data, errors, rows=5, required=true, placeholder="e.g. TIL-POR-2448-CAL × 300 boxes") }}
-    {{ textarea("message", "Timeline, delivery details, anything else", data, errors, rows=3) }}
-    <button class="btn btn-primary btn-block" type="submit">Request quote</button>
-  </form>
-</div>
+    {{ textarea("message", "Timeline or notes (optional)", data, errors, rows=2, placeholder="Needed by the 15th, job site has forklift…") }}
+    <button class="btn btn-primary btn-block" type="submit">Send quote request</button>
+    <p class="small muted center">Next you can also send it to us on {% if site.whatsapp %}WhatsApp, {% endif %}email, or save it as a PDF.</p>
+  </section>
+</form>
 {% endblock %}

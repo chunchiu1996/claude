@@ -27,7 +27,7 @@ def supplier_statement(db, supplier_id):
     paid_out = sum(p["amount_cents"] for p in payouts)
 
     products = db.execute(
-        f"""SELECT p.id, p.sku, p.name, p.unit, p.stock_qty, p.price_cents, p.active,
+        f"""SELECT p.id, p.sku, p.name, p.unit, p.stock_qty, p.price_cents, p.active, p.quote_only,
                (SELECT COALESCE(SUM(qty_change), 0) FROM stock_movements m
                   WHERE m.product_id = p.id AND m.kind = 'receive') AS received,
                (SELECT COALESCE(SUM(oi.qty), 0) FROM order_items oi JOIN orders o ON o.id = oi.order_id

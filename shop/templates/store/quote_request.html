@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}Quote request {{ inquiry.reference }} · {{ site.name }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<div class="quote-doc">
+  <div class="no-print send-box">
+    <h1>Request sent ✓</h1>
+    <p>We've received quote request <strong>{{ inquiry.reference }}</strong> and will reply by
+      <strong>{{ contact_prefs.get(inquiry.contact_pref, "Email") }}</strong> within one business day.
+      {% if inquiry.email and email_enabled %}A copy is on its way to {{ inquiry.email }}.{% endif %}</p>
+    <p class="small muted">Want a faster answer? Send it to us directly:</p>
+    <div class="actions">
+      {% if whatsapp_url %}<a class="btn btn-whatsapp" href="{{ whatsapp_url }}" target="_blank" rel="noopener">Send on WhatsApp</a>{% endif %}
+      {% if mailto_url %}<a class="btn" href="{{ mailto_url }}">Send by email</a>{% endif %}
+      <button class="btn" type="button" onclick="window.print()">Print / save as PDF</button>
+      <button class="btn" type="button" data-copy="quote-text">Copy text</button>
+    </div>
+    {% if site.wechat %}<p class="small">WeChat 微信: <strong>{{ site.wechat }}</strong>. Paste the copied text into WeChat.</p>{% endif %}
+    <textarea id="quote-text" class="visually-hidden" readonly>{{ message_text }}</textarea>
+  </div>
+
+  <article class="form-card doc">
+    <header class="doc-head">
+      <div>
+        <strong class="logo">{{ site.name }}</strong>
+        <div class="small muted">{{ site.warehouse }} · {{ site.email }}{% if site.phone %} · {{ site.phone }}{% endif %}</div>
+      </div>
+      <div class="doc-ref">
+        <div class="small muted">REQUEST FOR QUOTATION</div>
+        <strong>{{ inquiry.reference }}</strong>
+        <div class="small muted">{{ inquiry.created_at[:10] }}</div>
+      </div>
+    </header>
+
+    <div class="grid-2 doc-parties">
+      <div>
+        <div class="small muted">From</div>
+        <strong>{{ inquiry.name }}</strong>{% if inquiry.company %}<br>{{ inquiry.company }}{% endif %}
+        {% if inquiry.email %}<br>{{ inquiry.email }}{% endif %}{% if inquiry.phone %}<br>{{ inquiry.phone }}{% endif %}
+      </div>
+      <div>
+        {% if inquiry.location %}<div class="small muted">Delivery ZIP</div>{{ inquiry.location }}<br>{% endif %}
+        <div class="small muted">Reply by</div>{{ contact_prefs.get(inquiry.contact_pref, "Email") }}
+      </div>
+    </div>
+
+    {% if items %}
+    <table class="data">
+      <thead><tr><th>#</th><th>SKU</th><th>Product</th><th class="num">Quantity</th><th class="num">Unit price</th></tr></thead>
+      {% for item in items %}
+        <tr><td>{{ loop.index }}</td><td><code>{{ item.sku }}</code></td><td>{{ item.name }}{% if item.unit_note %}<div class="small muted">{{ item.unit_note }}</div>{% endif %}</td>
+          <td class="num">{{ "{:,}".format(item.qty) }} {{ (item.unit or "")|plural(item.qty) }}</td><td class="num muted">to be quoted</td></tr>
+      {% endfor %}
+    </table>
+    {% endif %}
+    {% if inquiry["items"] %}<h2 class="h3">Other items</h2><p class="prewrap">{{ inquiry["items"] }}</p>{% endif %}
+    {% if inquiry.message %}<h2 class="h3">Notes</h2><p class="prewrap">{{ inquiry.message }}</p>{% endif %}
+  </article>
+  <p class="no-print"><a href="{{ url_for('store.catalog') }}">← Continue browsing</a></p>
+</div>
+<script>
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var text = document.getElementById(btn.dataset.copy).value;
+      navigator.clipboard.writeText(text).then(function () { btn.textContent = "Copied ✓"; });
+    });
+  });
+</script>
+{% endblock %}

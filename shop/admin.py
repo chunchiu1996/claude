@@ -15,7 +15,8 @@ from flask import (
     url_for,
 )
 
-from . import orders
+from . import inquiries as inq
+from . import notify, orders
 from .catalog import (
     PRODUCT_SELECT,
     categories_with_counts,
@@ -28,7 +29,7 @@ from .catalog import (
     unique_slug,
 )
 from .db import get_db
-from .importer import COLUMNS, decode, import_products, template_csv
+from .importer import COLUMNS, import_rows, read_upload, template_csv, template_xlsx
 from .pricing import format_tiers, parse_money, parse_tiers
 from .reports import dashboard_stats, supplier_statement
 
@@ -114,9 +115,10 @@ def _form_from_product(p, tiers):
         "sku": p["sku"], "name": p["name"], "category_id": str(p["category_id"] or ""),
         "supplier_id": str(p["supplier_id"] or ""), "description": p["description"] or "",
         "specs": p["specs"] or "", "unit": p["unit"], "unit_note": p["unit_note"] or "",
-        "price": money(p["price_cents"]), "compare_at": money(p["compare_at_cents"]), "moq": str(p["moq"]),
+        "price": "" if p["quote_only"] and not p["price_cents"] else money(p["price_cents"]), "compare_at": money(p["compare_at_cents"]), "moq": str(p["moq"]),
         "warehouse": p["warehouse"] or "", "image_url": p["image_url"] or "", "tiers": format_tiers(tiers),
         "active": "1" if p["active"] else "", "featured": "1" if p["featured"] else "",
+        "quote_only": "1" if p["quote_only"] else "",
     }
 
 
@@ -136,10 +138,11 @@ def _parse_product_form(db, form, product_id=None):
         data[field] = form.get(field, "").strip() or None
     data["specs"] = normalize_specs(form.get("specs", "")) or None
     data["unit"] = form.get("unit", "").strip() or "piece"
+    data["quote_only"] = 1 if form.get("quote_only") else 0
     try:
-        data["price_cents"] = parse_money(form.get("price"))
-        if data["price_cents"] is None:
-            errors["price"] = "Required."
+        data["price_cents"] = parse_money(form.get("price")) or 0
+        if not data["price_cents"] and not data["quote_only"]:
+            errors["price"] = "Enter a price, or tick “Quote only” to hide the price."
     except ValueError as exc:
         errors["price"] = str(exc)
     try:
@@ -277,12 +280,17 @@ def import_view():
         if not upload or not upload.filename:
             flash("Choose a CSV file to upload.", "error")
         else:
-            result = import_products(
-                get_db(),
-                decode(upload.read()),
-                reference=request.form.get("reference", "").strip() or None,
-                stock_mode="set" if request.form.get("stock_mode") == "set" else "add",
-            )
+            try:
+                rows = read_upload(upload.filename, upload.read())
+            except ValueError as exc:
+                flash(str(exc), "error")
+            else:
+                result = import_rows(
+                    get_db(),
+                    rows,
+                    reference=request.form.get("reference", "").strip() or None,
+                    stock_mode="set" if request.form.get("stock_mode") == "set" else "add",
+                )
     return render_template("admin/import.html", result=result, columns=COLUMNS)
 
 
@@ -290,6 +298,15 @@ def import_view():
 def import_template():
     return Response(template_csv(), mimetype="text/csv",
                     headers={"Content-Disposition": "attachment; filename=product-import-template.csv"})
+
+
+@bp.route("/import/template.xlsx")
+def import_template_xlsx():
+    return Response(
+        template_xlsx(),
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=product-import-template.xlsx"},
+    )
 
 
 @bp.route("/export/products.csv")
@@ -300,10 +317,11 @@ def export_products():
     writer.writerow(COLUMNS)
     for p in db.execute(PRODUCT_SELECT + " ORDER BY p.sku").fetchall():
         writer.writerow([
-            p["sku"], p["name"], p["category_name"] or "", p["supplier_name"] or "", f"{p['price_cents'] / 100:.2f}",
+            p["sku"], p["name"], p["category_name"] or "", p["supplier_name"] or "",
+            "" if p["quote_only"] and not p["price_cents"] else f"{p['price_cents'] / 100:.2f}",
             "" if p["compare_at_cents"] is None else f"{p['compare_at_cents'] / 100:.2f}", p["unit"],
             p["unit_note"] or "", p["moq"], p["stock_qty"], p["warehouse"] or "",
-            format_tiers(get_tiers(db, p["id"])), p["description"] or "", (p["specs"] or "").replace("\n", "; "),
+            format_tiers(get_tiers(db, p["id"])), "yes" if p["quote_only"] else "no", p["description"] or "", (p["specs"] or "").replace("\n", "; "),
             p["image_url"] or "", "yes" if p["featured"] else "no", "yes" if p["active"] else "no",
         ])
     return Response("﻿" + out.getvalue(), mimetype="text/csv",
@@ -386,18 +404,49 @@ def order_detail(order_id):
 def inquiries():
     db = get_db()
     if request.method == "POST":
-        status = request.form.get("status")
-        if status in ("new", "contacted", "quoted", "won", "lost"):
-            db.execute("UPDATE inquiries SET status = ? WHERE id = ?", (status, request.form.get("id", type=int)))
-            db.commit()
+        _set_inquiry_status(db, request.form.get("id", type=int))
         return redirect(request.full_path if request.args else url_for("admin.inquiries"))
     kind = request.args.get("kind", "")
+    sql = """SELECT i.*, (SELECT COUNT(*) FROM inquiry_items ii WHERE ii.inquiry_id = i.id) AS item_count
+             FROM inquiries i"""
     if kind in ("quote", "supplier"):
-        rows = db.execute("SELECT * FROM inquiries WHERE kind = ? ORDER BY created_at DESC, id DESC", (kind,)).fetchall()
+        rows = db.execute(sql + " WHERE i.kind = ? ORDER BY i.created_at DESC, i.id DESC", (kind,)).fetchall()
     else:
         kind = ""
-        rows = db.execute("SELECT * FROM inquiries ORDER BY created_at DESC, id DESC LIMIT 200").fetchall()
-    return render_template("admin/inquiries.html", inquiries=rows, kind=kind)
+        rows = db.execute(sql + " ORDER BY i.created_at DESC, i.id DESC LIMIT 200").fetchall()
+    return render_template("admin/inquiries.html", inquiries=rows, kind=kind, contact_prefs=inq.CONTACT_PREFS)
+
+
+def _set_inquiry_status(db, inquiry_id):
+    status = request.form.get("status")
+    if status in inq.STATUSES:
+        db.execute("UPDATE inquiries SET status = ? WHERE id = ?", (status, inquiry_id))
+        db.commit()
+
+
+@bp.route("/inquiries/<int:inquiry_id>", methods=["GET", "POST"])
+def inquiry_detail(inquiry_id):
+    db = get_db()
+    inquiry = inq.get(db, inquiry_id)
+    if inquiry is None:
+        return redirect(url_for("admin.inquiries"))
+    if request.method == "POST":
+        _set_inquiry_status(db, inquiry_id)
+        flash("Status updated.", "success")
+        return redirect(url_for("admin.inquiry_detail", inquiry_id=inquiry_id))
+    items = inq.get_items(db, inquiry_id)
+    draft = inq.reply_draft(db, notify.site_info(), inquiry, items) if inquiry["kind"] == "quote" else (
+        f"Hi {inquiry['name']}, thank you for your interest in selling through {current_app.config['SITE_NAME']}. ")
+    subject = (f"Your quote {inquiry['reference']}" if inquiry["kind"] == "quote"
+               else f"Re: your application {inquiry['reference']}") + f" – {current_app.config['SITE_NAME']}"
+    return render_template(
+        "admin/inquiry_detail.html", inquiry=inquiry, items=items, draft=draft, statuses=inq.STATUSES,
+        contact_prefs=inq.CONTACT_PREFS, subject=subject,
+        whatsapp_base=notify.whatsapp_link(inquiry["phone"], draft),
+        mailto_base=notify.mailto_link(inquiry["email"], subject, draft),
+        public_url=url_for("store.quote_request", reference=inquiry["reference"], token=inquiry["access_token"])
+        if inquiry["reference"] and inquiry["access_token"] and inquiry["kind"] == "quote" else None,
+    )
 
 
 # ---------------------------------------------------------------- suppliers

@@ -2,29 +2,35 @@
 {% block admin_title %}Import products{% endblock %}
 {% block admin_content %}
 <h1>Import products &amp; stock from a spreadsheet</h1>
+<p class="muted">Send factories the Excel template. When their shipment arrives, upload the filled-in file here.</p>
 <div class="two-col wide-left">
   <form method="post" enctype="multipart/form-data" class="form-card">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-    <label class="field"><span>CSV file (save your Excel sheet as “CSV UTF-8”; Chinese GBK files work too)</span>
-      <input type="file" name="file" accept=".csv,text/csv" required></label>
+    <label class="field"><span>Excel (.xlsx) or CSV file</span>
+      <input type="file" name="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></label>
     <label class="field"><span>Shipment / container reference</span><input name="reference" placeholder="e.g. MSKU1234567 – arrived 2026-10-02"></label>
     <fieldset class="field">
-      <span>The <code>stock</code> column means…</span>
+      <span>The <strong>Quantity 数量</strong> column means…</span>
       <label class="check"><input type="radio" name="stock_mode" value="add" checked> Units <strong>just received</strong> in this shipment (added to current stock)</label>
       <label class="check"><input type="radio" name="stock_mode" value="set"> The <strong>full count on hand</strong> (stocktake — replaces current stock; use this when re-importing an exported file)</label>
     </fieldset>
     <button class="btn btn-primary">Import</button>
   </form>
   <aside class="panel">
+    <h2 class="h3">Template for factories</h2>
+    <p class="small">Bilingual (English / 中文) with instructions, examples, and dropdowns. Send it to each factory.</p>
+    <div class="actions">
+      <a class="btn btn-primary btn-sm" href="{{ url_for('admin.import_template_xlsx') }}">Download Excel template</a>
+      <a class="btn btn-sm" href="{{ url_for('admin.import_template') }}">CSV version</a>
+    </div>
     <h2 class="h3">How it works</h2>
     <ul class="small">
-      <li>Rows are matched by <code>sku</code>. New SKUs are created; existing ones are updated (blank cells are left unchanged).</li>
+      <li>Rows are matched by <strong>SKU</strong>. New SKUs are created, and existing ones are updated. Blank cells leave the current value unchanged.</li>
+      <li>English, Chinese or bilingual column headers all work. Title rows above the header are skipped.</li>
       <li>New categories and factories are created automatically by name.</li>
-      <li><code>tiers</code> = volume pricing, e.g. <code>20:38.99 | 100:35.45</code>.</li>
-      <li><code>specs</code> = <code>Key: Value; Key: Value</code>.</li>
-      <li>If any row has an error, <strong>nothing</strong> is imported — fix the file and upload it again.</li>
+      <li><strong>Quote only = yes</strong> hides the price (price can be blank).</li>
+      <li>If any row has an error, <strong>nothing</strong> is imported. Fix the file and upload it again.</li>
     </ul>
-    <a class="btn btn-sm" href="{{ url_for('admin.import_template') }}">Download template</a>
     <p class="small muted">Columns: {{ columns|join(", ") }}</p>
   </aside>
 </div>

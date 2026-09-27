@@ -13,7 +13,7 @@
 <div class="topbar">
   <div class="wrap">
     <span>Factory-direct prices · Stocked in {{ site.warehouse }}</span>
-    <span>{% if site.phone %}{{ site.phone }} · {% endif %}<a href="mailto:{{ site.email }}">{{ site.email }}</a></span>
+    <span>{% if site.whatsapp %}<a href="{{ whatsapp_link(site.whatsapp, 'Hi ' ~ site.name ~ ', ') }}" target="_blank" rel="noopener">WhatsApp us</a> · {% endif %}{% if site.phone %}{{ site.phone }} · {% endif %}<a href="mailto:{{ site.email }}">{{ site.email }}</a></span>
   </div>
 </div>
 <header class="site-header">
@@ -24,7 +24,7 @@
       <button type="submit">Search</button>
     </form>
     <nav class="header-links">
-      <a href="{{ url_for('store.quote') }}">Bulk quote</a>
+      <a href="{{ url_for('store.quote') }}">Quote list{% if quote_count %} <span class="badge">{{ quote_count }}</span>{% endif %}</a>
       <a class="cart-link" href="{{ url_for('store.cart') }}">Cart{% if cart_count %} <span class="badge">{{ cart_count }}</span>{% endif %}</a>
     </nav>
   </div>
@@ -53,7 +53,8 @@
       <strong>Shop</strong>
       <a href="{{ url_for('store.catalog') }}">All products</a>
       <a href="{{ url_for('store.catalog', in_stock=1) }}">In stock now</a>
-      <a href="{{ url_for('store.quote') }}">Contractor & bulk pricing</a>
+      <a href="{{ url_for('store.quote') }}">Request a quote</a>
+      {% if site.whatsapp %}<a href="{{ whatsapp_link(site.whatsapp, 'Hi ' ~ site.name ~ ', ') }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}
     </div>
     <div>
       <strong>Warehouse pickup</strong>

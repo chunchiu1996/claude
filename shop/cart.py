@@ -1,4 +1,8 @@
-"""Session cart: {product_id(str): qty}. Prices are always recomputed from the database."""
+"""Session baskets, both {product_id(str): qty}.
+
+- cart: priced items for checkout (prices always recomputed from the database)
+- quote list: items the customer wants a price quote for (no prices shown, no stock limit)
+"""
 from flask import session
 
 from .catalog import PRODUCT_SELECT, get_tiers
@@ -17,6 +21,23 @@ def clear_cart():
     session.pop("cart", None)
 
 
+def get_quote_list():
+    return dict(session.get("quote") or {})
+
+
+def save_quote_list(quote):
+    session["quote"] = {k: v for k, v in quote.items() if v > 0}
+
+
+def build_quote_lines(db, quote):
+    lines = []
+    for pid, qty in quote.items():
+        product = db.execute(PRODUCT_SELECT + " WHERE p.id = ? AND p.active = 1", (int(pid),)).fetchone()
+        if product is not None:
+            lines.append({"product": product, "qty": qty})
+    return lines
+
+
 def build_lines(db, cart):
     lines, problems = [], []
     for pid, qty in cart.items():
@@ -25,6 +46,8 @@ def build_lines(db, cart):
             continue
         tiers = get_tiers(db, product["id"])
         price = unit_price(product["price_cents"], tiers, qty)
+        if product["quote_only"]:
+            problems.append(f"{product['name']} is priced by quote only. Move your cart to a quote request below.")
         if qty < product["moq"]:
             problems.append(
                 f"{product['name']}: minimum order is {product['moq']} {pluralize(product['unit'], product['moq'])}."

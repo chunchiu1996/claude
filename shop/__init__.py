@@ -41,6 +41,16 @@ def create_app(test_config=None):
         STRIPE_SECRET_KEY=env("STRIPE_SECRET_KEY"),
         DELIVERY_FEE_CENTS=parse_money(env("DELIVERY_FEE", "150")),
         ALLOW_INVOICE=env("ALLOW_INVOICE", "1") != "0",
+        # Where quote requests and orders are sent
+        WHATSAPP_NUMBER=env("WHATSAPP_NUMBER", ""),
+        WECHAT_ID=env("WECHAT_ID", ""),
+        NOTIFY_EMAIL=env("NOTIFY_EMAIL", ""),
+        SMTP_HOST=env("SMTP_HOST", ""),
+        SMTP_PORT=int(env("SMTP_PORT", "587")),
+        SMTP_USER=env("SMTP_USER", ""),
+        SMTP_PASSWORD=env("SMTP_PASSWORD", ""),
+        SMTP_FROM=env("SMTP_FROM", ""),
+        SMTP_STARTTLS=env("SMTP_STARTTLS", "1") != "0",
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SECURE=env("SESSION_COOKIE_SECURE", "0") == "1",
@@ -95,22 +105,20 @@ def _install_template_helpers(app):
     def pct(rate):
         return f"{rate * 100:g}%"
 
+    from .notify import site_info, whatsapp_link
+
+    app.jinja_env.globals["whatsapp_link"] = whatsapp_link
+
     @app.context_processor
     def inject_globals():
         from .catalog import categories_with_counts
         from .db import get_db
         from .payments import enabled as stripe_enabled
 
-        cfg = app.config
         return {
-            "site": {
-                "name": cfg["SITE_NAME"],
-                "tagline": cfg["SITE_TAGLINE"],
-                "email": cfg["CONTACT_EMAIL"],
-                "phone": cfg["CONTACT_PHONE"],
-                "warehouse": cfg["WAREHOUSE_ADDRESS"],
-            },
+            "site": site_info(),
             "nav_categories": [c for c in categories_with_counts(get_db()) if c["product_count"]],
             "cart_count": len(session.get("cart") or {}),
+            "quote_count": len(session.get("quote") or {}),
             "stripe_enabled": stripe_enabled(),
         }

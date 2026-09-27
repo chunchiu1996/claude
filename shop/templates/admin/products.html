@@ -24,10 +24,10 @@
   {% for p in products %}
     <tr class="{{ '' if p.active else 'inactive' }}">
       <td><code>{{ p.sku }}</code></td>
-      <td><a href="{{ url_for('admin.product_edit', product_id=p.id) }}">{{ p.name }}</a>{% if p.featured %} <span class="pill">featured</span>{% endif %}{% if not p.active %} <span class="pill pill-cancelled">hidden</span>{% endif %}</td>
+      <td><a href="{{ url_for('admin.product_edit', product_id=p.id) }}">{{ p.name }}</a>{% if p.featured %} <span class="pill">featured</span>{% endif %}{% if p.quote_only %} <span class="pill pill-quote">quote only</span>{% endif %}{% if not p.active %} <span class="pill pill-cancelled">hidden</span>{% endif %}</td>
       <td>{{ p.category_name or "—" }}</td>
       <td class="small">{{ p.supplier_name or "—" }}</td>
-      <td class="num">{{ p.price_cents|money }}<span class="muted small">/{{ p.unit }}</span></td>
+      <td class="num">{% if p.quote_only and not p.price_cents %}<span class="muted">on request</span>{% else %}{{ p.price_cents|money }}<span class="muted small">/{{ p.unit }}</span>{% endif %}</td>
       <td class="num {% if p.stock_qty <= low_stock %}warn{% endif %}">{{ "{:,}".format(p.stock_qty) }}</td>
       <td>{% if p.active %}<a class="small" href="{{ url_for('store.product', slug=p.slug) }}" target="_blank">view ↗</a>{% endif %}</td>
     </tr>

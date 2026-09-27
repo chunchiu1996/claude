@@ -14,7 +14,7 @@
   <table class="data">
     <thead><tr><th>SKU</th><th>{{ t("Product", "产品") }}</th><th class="num">{{ t("Received", "已入库") }}</th><th class="num">{{ t("Sold", "已售") }}</th><th class="num">{{ t("Reserved", "已预订") }}</th><th class="num">{{ t("On hand", "现有库存") }}</th><th class="num">{{ t("Price", "售价") }}</th></tr></thead>
     {% for p in st.products %}
-      <tr class="{{ '' if p.active else 'inactive' }}"><td><code>{{ p.sku }}</code></td><td>{{ p.name }}</td><td class="num">{{ "{:,}".format(p.received) }}</td><td class="num">{{ "{:,}".format(p.sold) }}</td><td class="num">{{ "{:,}".format(p.reserved) }}</td><td class="num"><strong>{{ "{:,}".format(p.stock_qty) }}</strong></td><td class="num">{{ p.price_cents|money }}/{{ p.unit }}</td></tr>
+      <tr class="{{ '' if p.active else 'inactive' }}"><td><code>{{ p.sku }}</code></td><td>{{ p.name }}</td><td class="num">{{ "{:,}".format(p.received) }}</td><td class="num">{{ "{:,}".format(p.sold) }}</td><td class="num">{{ "{:,}".format(p.reserved) }}</td><td class="num"><strong>{{ "{:,}".format(p.stock_qty) }}</strong></td><td class="num">{% if p.quote_only and not p.price_cents %}{{ t("By quote", "询价") }}{% else %}{{ p.price_cents|money }}/{{ p.unit }}{% endif %}</td></tr>
     {% else %}<tr><td colspan="7" class="muted">{{ t("No products yet.", "暂无产品") }}</td></tr>{% endfor %}
   </table>
   </div>

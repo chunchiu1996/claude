@@ -1,7 +1,7 @@
 """Demo data so the shop isn't empty on first run. All suppliers/products here are fictional."""
 import secrets
 
-from . import orders
+from . import inquiries, orders
 from .catalog import PRODUCT_SELECT, get_or_create_category, record_movement, set_tiers, slugify, unique_slug
 
 SUPPLIERS = [
@@ -21,6 +21,7 @@ CATEGORIES = [
     ("Faucets & Fixtures", "Kitchen and bath faucets, shower systems."),
     ("Lighting", "LED recessed lights and fixtures."),
     ("Doors & Hardware", "Door levers, barn door kits and more."),
+    ("Countertops", "Engineered quartz slabs, priced by quote."),
 ]
 
 # sku, name, category, supplier index, unit, unit_note, price, compare_at, moq, stock, tiers, featured, description, specs
@@ -102,7 +103,12 @@ PRODUCTS = [
      "Fits doors 36–40 in wide", 7900, 14900, 1, 310, [(10, 6900)], 0,
      "Heavy-duty carbon-steel track and quiet nylon wheels, holds up to 220 lb.",
      "Track length: 6.6 ft\nLoad capacity: 220 lb\nDoor thickness: 1-3/8 to 1-3/4 in\nIncludes: All hardware"),
+    ("QTZ-SLAB-CAL-3CM", "Quartz Slab 126x63 in – Calacatta Gold, 3cm", "Countertops", 0, "slab",
+     "126 x 63 in, polished", 0, None, 1, 45, [], 0,
+     "Engineered quartz slab for kitchen countertops and islands. Priced by quote: fabrication and volume vary.",
+     "Size: 126 x 63 in\nThickness: 3cm\nFinish: Polished\nMohs hardness: 7"),
 ]
+QUOTE_ONLY_SKUS = {"QTZ-SLAB-CAL-3CM"}
 
 
 def seed_demo(db):
@@ -121,10 +127,11 @@ def seed_demo(db):
          description, specs) in PRODUCTS:
         product_id = db.execute(
             """INSERT INTO products (sku, slug, name, category_id, supplier_id, description, specs, unit, unit_note,
-                   price_cents, compare_at_cents, moq, warehouse, featured)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                   price_cents, compare_at_cents, moq, warehouse, featured, quote_only)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (sku, unique_slug(db, "products", slugify(name)), name, get_or_create_category(db, category),
-             supplier_ids[sup], description, specs, unit, unit_note, price, compare_at, moq, "Ontario, CA", featured),
+             supplier_ids[sup], description, specs, unit, unit_note, price, compare_at, moq, "Ontario, CA", featured,
+             1 if sku in QUOTE_ONLY_SKUS else 0),
         ).lastrowid
         set_tiers(db, product_id, tiers)
         record_movement(db, product_id, stock, "receive", f"Container DEMU{4000000 + product_id * 7919 % 999999:07d}",
@@ -153,10 +160,15 @@ def seed_demo(db):
 
     db.execute("INSERT INTO payouts (supplier_id, amount_cents, reference, note) VALUES (?, ?, ?, ?)",
                (supplier_ids[1], 300000, "Wire #DEMO-001", "Demo partial payout"))
-    db.execute(
-        "INSERT INTO inquiries (kind, name, email, phone, company, role, location, items, message) "
-        "VALUES ('quote', 'Demo Builder', 'builder@example.com', '555-0101', 'Demo Homes Inc', "
-        "'Contractor / Remodeler', '92336', 'TIL-POR-2448-CAL × 300 boxes\nVAN-36-GRY-QTZ × 24', "
-        "'12-unit townhouse project, need delivery in 3 weeks.')"
-    )
     db.commit()
+
+    def quote_line(sku, qty):
+        return {"product": db.execute("SELECT * FROM products WHERE sku = ?", (sku,)).fetchone(), "qty": qty}
+
+    inquiries.create(
+        db, "quote",
+        {"name": "Demo Builder", "email": "builder@example.com", "phone": "(909) 555-0101", "company": "Demo Homes Inc",
+         "role": "Contractor / Remodeler", "location": "92336", "contact_pref": "whatsapp",
+         "message": "12-unit townhouse project, need delivery in 3 weeks."},
+        [quote_line("TIL-POR-2448-CAL", 300), quote_line("VAN-36-GRY-QTZ", 24), quote_line("QTZ-SLAB-CAL-3CM", 12)],
+    )

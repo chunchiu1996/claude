@@ -19,6 +19,13 @@
   </ul>
 </section>
 
+{% if not categories|selectattr("product_count")|list %}
+<section class="empty">
+  <h2>New stock is arriving soon</h2>
+  <p>Tell us what you're looking for and we'll send you pricing as soon as it lands.</p>
+  <a class="btn btn-primary" href="{{ url_for('store.quote') }}">Request a quote</a>
+</section>
+{% else %}
 <section>
   <div class="section-head"><h2>Shop by category</h2></div>
   <div class="cat-grid">
@@ -31,6 +38,7 @@
     {% endfor %}
   </div>
 </section>
+{% endif %}
 
 {% if featured %}
 <section>

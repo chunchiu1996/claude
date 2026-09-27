@@ -1,0 +1,83 @@
+{% extends "admin/_layout.html" %}
+{% block admin_title %}{{ inquiry.reference or "Inquiry" }}{% endblock %}
+{% block admin_content %}
+<p class="small"><a href="{{ url_for('admin.inquiries') }}">← Inquiries</a></p>
+<div class="section-head">
+  <h1>{{ "Quote request" if inquiry.kind == 'quote' else "Factory application" }} {{ inquiry.reference or "" }}</h1>
+  <form method="post" class="actions">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="small">Status
+      <select name="status" onchange="this.form.submit()">
+        {% for s in statuses %}<option {% if s == inquiry.status %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select></label>
+    <noscript><button class="btn btn-sm">Save</button></noscript>
+  </form>
+</div>
+
+<div class="two-col wide-left">
+  <section>
+    {% if items %}
+    <div class="panel">
+      <h2 class="h3">Requested products</h2>
+      <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>SKU</th><th>Product</th><th class="num">Qty</th><th class="num">In stock</th><th class="num">List price</th></tr></thead>
+        {% for item in items %}
+          <tr>
+            <td><code>{{ item.sku }}</code></td>
+            <td>{% if item.product_id %}<a href="{{ url_for('admin.product_edit', product_id=item.product_id) }}">{{ item.name }}</a>{% else %}{{ item.name }}{% endif %}</td>
+            <td class="num">{{ "{:,}".format(item.qty) }} {{ (item.unit or "")|plural(item.qty) }}</td>
+            <td class="num {{ 'warn' if item.stock_qty is not none and item.stock_qty < item.qty }}">{{ "{:,}".format(item.stock_qty) if item.stock_qty is not none else "—" }}</td>
+            <td class="num">{% if item.quote_only or not item.price_cents %}<span class="pill pill-quote">quote</span>{% else %}{{ item.price_cents|money }}{% endif %}</td>
+          </tr>
+        {% endfor %}
+      </table>
+      </div>
+    </div>
+    {% endif %}
+    {% if inquiry["items"] %}<div class="panel"><h2 class="h3">{{ "Other items" if inquiry.kind == 'quote' else "Products & quantities" }}</h2><p class="prewrap">{{ inquiry["items"] }}</p></div>{% endif %}
+    {% if inquiry.message %}<div class="panel"><h2 class="h3">Message</h2><p class="prewrap">{{ inquiry.message }}</p></div>{% endif %}
+
+    <div class="panel">
+      <h2 class="h3">Reply</h2>
+      <p class="small muted">Fill in the blanks ($____), edit anything, then send it with one click. List prices (including volume pricing) are already filled in.</p>
+      <textarea id="reply" rows="14" class="reply-box">{{ draft }}</textarea>
+      <div class="actions">
+        {% if whatsapp_base %}<a class="btn btn-whatsapp" href="{{ whatsapp_base }}" target="_blank" rel="noopener" data-reply="whatsapp">Send on WhatsApp</a>{% endif %}
+        {% if mailto_base %}<a class="btn" href="{{ mailto_base }}" data-reply="mailto">Send by email</a>{% endif %}
+        <button class="btn" type="button" data-copy="reply">Copy text</button>
+      </div>
+      <p class="small muted">After sending, set the status to <em>quoted</em>.</p>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <h2 class="h3">Contact</h2>
+    <p><strong>{{ inquiry.name }}</strong>{% if inquiry.company %}<br>{{ inquiry.company }}{% endif %}
+      {% if inquiry.email %}<br><a href="mailto:{{ inquiry.email }}">{{ inquiry.email }}</a>{% endif %}
+      {% if inquiry.phone %}<br>{{ inquiry.phone }}{% endif %}</p>
+    <p class="small">Prefers: <strong>{{ contact_prefs.get(inquiry.contact_pref, "Email") }}</strong></p>
+    {% if inquiry.role %}<p class="small muted">{{ inquiry.role }}</p>{% endif %}
+    {% if inquiry.location %}<p class="small">📍 {{ inquiry.location }}</p>{% endif %}
+    <p class="small muted">Received {{ inquiry.created_at }} UTC</p>
+    {% if public_url %}<p class="small"><a href="{{ public_url }}" target="_blank">Customer's request page ↗</a></p>{% endif %}
+  </aside>
+</div>
+<script>
+  var subject = {{ subject|tojson }};
+  document.querySelectorAll("[data-reply]").forEach(function (link) {
+    link.addEventListener("click", function () {
+      var text = encodeURIComponent(document.getElementById("reply").value);
+      var base = link.getAttribute("href").split("?")[0];
+      link.href = link.dataset.reply === "whatsapp" ? base + "?text=" + text
+        : base + "?subject=" + encodeURIComponent(subject) + "&body=" + text;
+    });
+  });
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      navigator.clipboard.writeText(document.getElementById(btn.dataset.copy).value)
+        .then(function () { btn.textContent = "Copied ✓"; });
+    });
+  });
+</script>
+{% endblock %}

@@ -24,3 +24,15 @@ services:
         sync: false
       - key: STRIPE_SECRET_KEY
         sync: false          # optional: leave blank to take orders as pay-by-invoice
+      - key: WHATSAPP_NUMBER
+        sync: false          # your business WhatsApp, e.g. +1 626 555 0199
+      - key: WECHAT_ID
+        sync: false          # optional
+      - key: NOTIFY_EMAIL
+        sync: false          # where new quote requests & orders are emailed (defaults to CONTACT_EMAIL)
+      - key: SMTP_HOST
+        sync: false          # e.g. smtp.gmail.com (optional: without SMTP, check Admin > Inquiries)
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false          # for Gmail use an App Password

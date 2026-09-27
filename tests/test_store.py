@@ -164,22 +164,19 @@ def test_stale_card_orders_release_stock(db):
     assert product(db, "HDW-LEV-PASS-MB")["stock_qty"] == p["stock_qty"]
 
 
-def test_quote_and_supplier_forms(client, db):
-    assert b"SPC-7MM-OAK" in client.get("/quote?sku=SPC-7MM-OAK").data
-    assert client.post("/quote", data={"name": "Sam", "email": "sam@example.com"}).status_code == 200
-    resp = client.post("/quote", data={"name": "Sam", "email": "sam@example.com", "items": "Tile x 400 boxes"})
-    assert b"Quote request received" in resp.data
-
+def test_supplier_application_form(client, db):
+    assert client.post("/sell-with-us", data={"name": "Li"}).status_code == 200
     resp = client.post("/sell-with-us", data={"name": "Li", "email": "li@example.com", "company": "Foshan Co",
                                               "items": "Tile, 2 containers"})
     assert "谢谢".encode() in resp.data
-    kinds = [r["kind"] for r in db.execute("SELECT kind FROM inquiries WHERE name IN ('Sam', 'Li')")]
-    assert sorted(kinds) == ["quote", "supplier"]
+    row = db.execute("SELECT * FROM inquiries WHERE name = 'Li'").fetchone()
+    assert row["kind"] == "supplier" and row["reference"].startswith("F-")
 
 
 def test_feeds(client):
     feed = client.get("/feed/products.xml")
     assert feed.status_code == 200 and b"<g:id>SPC-7MM-OAK</g:id>" in feed.data
     assert b"<g:price>42.50 USD</g:price>" in feed.data
+    assert b"QTZ-SLAB-CAL-3CM" not in feed.data  # quote-only products have no price for Google
     assert b"/p/" in client.get("/sitemap.xml").data
     assert b"Disallow: /admin" in client.get("/robots.txt").data

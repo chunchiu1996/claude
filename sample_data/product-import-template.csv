@@ -1,2 +1,4 @@
-sku,name,category,supplier,price,compare_at_price,unit,unit_note,moq,stock,warehouse,tiers,description,specs,image_url,featured,active
-SPC-7MM-OAK,"Rigid Core SPC Vinyl Plank - Natural Oak, 7mm",Flooring,Example Flooring Factory,42.50,66.00,box,23.64 sq ft per box,1,860,"Ontario, CA",20:38.99 | 100:35.45,Waterproof click-lock plank with attached IXPE pad.,Thickness: 7mm; Wear layer: 20 mil; Plank size: 7.2 x 60 in,,yes,yes
+sku,name,category,supplier,price,compare_at_price,unit,unit_note,moq,stock,warehouse,tiers,quote_only,description,specs,image_url,featured,active
+SPC-7MM-OAK,"Rigid Core SPC Vinyl Plank - Natural Oak, 7mm",Flooring,Changzhou Example Flooring Co.,42.5,66,box,23.64 sq ft per box,1,860,"Ontario, CA",20:38.99 | 100:35.45,no,Waterproof click-lock plank with attached IXPE pad.,Thickness: 7mm; Wear layer: 20 mil; Plank size: 7.2 x 60 in,,yes,yes
+QTZ-SLAB-CAL-3CM,"Quartz Slab 126x63 in - Calacatta Gold, 3cm",Countertops,Foshan Example Stone Co.,,,slab,"126 x 63 in, polished",1,45,"Ontario, CA",,yes,Engineered quartz slab for kitchen countertops and islands.,Size: 126 x 63 in; Thickness: 3cm; Finish: Polished,,,yes
+FAU-KIT-PD-BN,Pull-Down Kitchen Faucet - Brushed Nickel,Faucets & Fixtures,Kaiping Example Sanitary Ware,68,149,piece,,1,520,"Ontario, CA",10:61 | 50:55,no,,Material: Solid brass; Flow rate: 1.8 GPM; Certification: cUPC,,,yes

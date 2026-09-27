@@ -18,10 +18,23 @@ def close_db(exc=None):
         db.close()
 
 
+# (table, column, definition) added after the first release; applied to older databases on startup.
+MIGRATIONS = [
+    ("products", "quote_only", "INTEGER NOT NULL DEFAULT 0"),
+    ("inquiries", "reference", "TEXT"),
+    ("inquiries", "access_token", "TEXT"),
+    ("inquiries", "contact_pref", "TEXT"),
+]
+
+
 def init_db():
     db = get_db()
     db.execute("PRAGMA journal_mode = WAL")
     db.executescript(current_app.open_resource("schema.sql").read().decode("utf-8"))
+    for table, column, definition in MIGRATIONS:
+        if column not in {row["name"] for row in db.execute(f"PRAGMA table_info({table})")}:
+            db.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_inquiries_reference ON inquiries(reference)")
     db.commit()
 
 

@@ -9,11 +9,21 @@ from flask import (
     render_template,
     request,
     send_from_directory,
+    session,
     url_for,
 )
 
-from . import orders, payments
-from .cart import build_lines, clear_cart, get_cart, save_cart
+from . import inquiries as inq
+from . import notify, orders, payments
+from .cart import (
+    build_lines,
+    build_quote_lines,
+    clear_cart,
+    get_cart,
+    get_quote_list,
+    save_cart,
+    save_quote_list,
+)
 from .catalog import CUSTOMER_TYPES, PRODUCT_SELECT, categories_with_counts, get_tiers, parse_specs
 from .db import get_db
 from .pricing import pluralize
@@ -122,6 +132,9 @@ def cart_add():
     item = db.execute("SELECT * FROM products WHERE id = ? AND active = 1", (product_id,)).fetchone()
     if item is None:
         abort(404)
+    if item["quote_only"]:
+        flash(f"{item['name']} is priced by quote. Add it to your quote list and we'll send you our best price.", "error")
+        return redirect(url_for("store.product", slug=item["slug"]))
     if item["stock_qty"] <= 0:
         flash(f"{item['name']} is out of stock. Request a quote and we'll tell you when more arrives.", "error")
         return redirect(url_for("store.product", slug=item["slug"]))
@@ -237,6 +250,7 @@ def checkout():
             db.execute("UPDATE orders SET stripe_session_id = ? WHERE id = ?", (session_id, order["id"]))
             db.commit()
             return redirect(pay_url, code=303)
+        notify.new_order(order, orders.get_items(db, order["id"]))
         return redirect(order_url)
 
     return render_template(
@@ -276,10 +290,12 @@ def order_status(number, token):
         and payments.enabled()
     ):
         try:
-            session = payments.retrieve_checkout_session(order["stripe_session_id"])
-            if session.get("payment_status") == "paid" and session.get("client_reference_id") == order["number"]:
+            stripe_session = payments.retrieve_checkout_session(order["stripe_session_id"])
+            if (stripe_session.get("payment_status") == "paid"
+                    and stripe_session.get("client_reference_id") == order["number"]):
                 orders.set_status(db, order["id"], "paid")
                 order = orders.get_order(db, order["id"])
+                notify.new_order(order, orders.get_items(db, order["id"]))
         except payments.PaymentError:
             current_app.logger.exception("Could not verify Stripe payment for %s", number)
     return render_template("store/order.html", order=order, items=orders.get_items(db, order["id"]))
@@ -295,58 +311,125 @@ def order_cancel(number, token):
     return redirect(url_for("store.cart"))
 
 
-# ---------------------------------------------------------------- inquiries
+# ---------------------------------------------------------------- quote requests
 
 
-def _save_inquiry(kind, data):
+@bp.post("/quote/add")
+def quote_add():
     db = get_db()
-    db.execute(
-        "INSERT INTO inquiries (kind, name, email, phone, company, role, location, items, message) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        (kind, data["name"], data["email"], data["phone"], data["company"], data["role"],
-         data["location"], data["items"], data["message"]),
-    )
-    db.commit()
+    product_id = request.form.get("product_id", type=int)
+    qty = max(request.form.get("qty", 1, type=int) or 1, 1)
+    item = db.execute("SELECT * FROM products WHERE id = ? AND active = 1", (product_id,)).fetchone()
+    if item is None:
+        abort(404)
+    quote_list = get_quote_list()
+    quote_list[str(item["id"])] = quote_list.get(str(item["id"]), 0) + qty
+    save_quote_list(quote_list)
+    flash(f"Added {item['name']} to your quote list.", "success")
+    return redirect(url_for("store.quote"))
 
 
-def _inquiry_form(required=("name", "email")):
+def _apply_quote_edits(quote_list):
+    for key in list(quote_list):
+        value = request.form.get(f"qty_{key}", type=int)
+        if value is not None:
+            quote_list[key] = max(value, 0)
+    if request.form.get("remove") in quote_list:
+        del quote_list[request.form["remove"]]
+    save_quote_list(quote_list)
+    return get_quote_list()
+
+
+@bp.post("/quote/update")
+def quote_update():
+    _apply_quote_edits(get_quote_list())
+    return redirect(url_for("store.quote"))
+
+
+@bp.post("/quote/from-cart")
+def quote_from_cart():
+    quote_list = get_quote_list()
+    for key, qty in get_cart().items():
+        quote_list[key] = quote_list.get(key, 0) + qty
+    save_quote_list(quote_list)
+    clear_cart()
+    flash("Your cart is now a quote request. Add your details and we'll reply with our best price.", "success")
+    return redirect(url_for("store.quote"))
+
+
+def _quote_form():
     f = request.form
-    data = {k: f.get(k, "").strip() for k in ("name", "email", "phone", "company", "role", "location", "items", "message")}
-    errors = {k: "Required." for k in required if not data[k]}
-    if data["email"] and "@" not in data["email"]:
+    data = {k: f.get(k, "").strip()
+            for k in ("name", "email", "phone", "company", "role", "location", "items", "message", "contact_pref")}
+    if data["contact_pref"] not in inq.CONTACT_PREFS:
+        data["contact_pref"] = "email"
+    errors = {}
+    if not data["name"]:
+        errors["name"] = "Please enter your name."
+    if data["email"] and ("@" not in data["email"] or "." not in data["email"].split("@")[-1]):
         errors["email"] = "Please enter a valid email."
+    if data["contact_pref"] == "email" and not data["email"]:
+        errors["email"] = "Enter your email so we can send your quote."
+    if data["contact_pref"] != "email" and not data["phone"]:
+        errors["phone"] = f"Enter your {inq.CONTACT_PREFS[data['contact_pref']]} number so we can reach you."
     return data, errors
 
 
 @bp.route("/quote", methods=["GET", "POST"])
 def quote():
+    db = get_db()
+    data, errors = {"contact_pref": "whatsapp" if current_app.config.get("WHATSAPP_NUMBER") else "email"}, {}
+    quote_list = get_quote_list()
     if request.method == "POST":
-        data, errors = _inquiry_form(required=("name", "email", "items"))
+        quote_list = _apply_quote_edits(quote_list)
+        data, errors = _quote_form()
+        lines = build_quote_lines(db, quote_list)
+        if not lines and not data["items"]:
+            errors["items"] = "Add products to your quote list, or describe what you need here."
         if not errors:
-            _save_inquiry("quote", data)
-            return render_template("store/thanks.html", kind="quote")
-    else:
-        errors, prefill = {}, []
-        db = get_db()
-        if request.args.get("from") == "cart":
-            for line in build_lines(db, get_cart())[0]:
-                prefill.append(f"{line['product']['sku']} – {line['product']['name']} × {line['qty']}")
-        elif request.args.get("sku"):
-            row = db.execute("SELECT sku, name FROM products WHERE sku = ?", (request.args["sku"],)).fetchone()
-            if row:
-                prefill.append(f"{row['sku']} – {row['name']} × ")
-        data = {"items": "\n".join(prefill)}
-    return render_template("store/quote.html", data=data, errors=errors, customer_types=CUSTOMER_TYPES)
+            inquiry = inq.create(db, "quote", data, lines)
+            session.pop("quote", None)
+            notify.new_inquiry(inquiry, inq.get_items(db, inquiry["id"]))
+            return redirect(url_for("store.quote_request", reference=inquiry["reference"],
+                                    token=inquiry["access_token"]))
+    return render_template(
+        "store/quote.html", lines=build_quote_lines(db, quote_list), data=data, errors=errors,
+        customer_types=CUSTOMER_TYPES, contact_prefs=inq.CONTACT_PREFS,
+    )
+
+
+@bp.route("/quote/r/<reference>/<token>")
+def quote_request(reference, token):
+    """The customer's copy of their request: print/save as PDF, or send it to us on WhatsApp / email."""
+    db = get_db()
+    inquiry = db.execute("SELECT * FROM inquiries WHERE reference = ?", (reference,)).fetchone()
+    if inquiry is None or not inquiry["access_token"] or not secrets.compare_digest(token, inquiry["access_token"]):
+        abort(404)
+    items = inq.get_items(db, inquiry["id"])
+    site = notify.site_info()
+    text = inq.request_text(site["name"], inquiry, items, url=request.url)
+    return render_template(
+        "store/quote_request.html", inquiry=inquiry, items=items, contact_prefs=inq.CONTACT_PREFS,
+        whatsapp_url=notify.whatsapp_link(site["whatsapp"], text),
+        mailto_url=notify.mailto_link(site["email"], f"Quote request {inquiry['reference']}", text),
+        message_text=text,
+        email_enabled=bool(current_app.config.get("SMTP_HOST")),
+    )
 
 
 @bp.route("/sell-with-us", methods=["GET", "POST"])
 def sell_with_us():
     data, errors = {}, {}
     if request.method == "POST":
-        data, errors = _inquiry_form(required=("name", "email", "company", "items"))
+        f = request.form
+        data = {k: f.get(k, "").strip() for k in ("name", "email", "phone", "company", "location", "items", "message")}
+        errors = {k: "Required." for k in ("name", "email", "company", "items") if not data[k]}
+        if data["email"] and "@" not in data["email"]:
+            errors["email"] = "Please enter a valid email."
         if not errors:
-            data["role"] = data["role"] or "Factory / supplier"
-            _save_inquiry("supplier", data)
+            db = get_db()
+            inquiry = inq.create(db, "supplier", {**data, "role": "Factory / supplier"})
+            notify.new_inquiry(inquiry, [])
             return render_template("store/thanks.html", kind="supplier")
     return render_template("store/sell.html", data=data, errors=errors)
 
@@ -368,7 +451,8 @@ def _absolute(url):
 @bp.route("/feed/products.xml")
 def product_feed():
     """Google Merchant Center / Meta catalog feed: free listings on Google Shopping & Facebook."""
-    products = get_db().execute(PRODUCT_SELECT + " WHERE p.active = 1 ORDER BY p.id").fetchall()
+    # Google/Meta require a price, so quote-only products are left out of the feed.
+    products = get_db().execute(PRODUCT_SELECT + " WHERE p.active = 1 AND p.quote_only = 0 ORDER BY p.id").fetchall()
     xml = render_template("store/feed.xml", products=products, absolute=_absolute)
     return xml, 200, {"Content-Type": "application/xml; charset=utf-8"}
 

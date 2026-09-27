@@ -15,6 +15,12 @@
     <h1>{{ p.name }}</h1>
     <p class="muted small">SKU {{ p.sku }}{% if p.unit_note %} · {{ p.unit_note }}{% endif %}</p>
 
+    {% if p.quote_only %}
+    <div class="price-block">
+      <span class="price big quote">Price on request</span>
+      <div class="small muted">Tell us how many you need — we'll reply with our best price, usually within one business day.</div>
+    </div>
+    {% else %}
     <div class="price-block">
       <span class="price big">{{ p.price_cents|money }}</span>
       <span class="muted">per {{ p.unit }}</span>
@@ -35,21 +41,25 @@
       </tbody>
     </table>
     {% endif %}
+    {% endif %}
 
     <div class="stock-line">{{ stock_badge(p) }}
       {% if p.stock_qty > 0 %}<span class="muted small">{{ "{:,}".format(p.stock_qty) }} {{ p.unit|plural(p.stock_qty) }} available{% if p.warehouse %} · ships from {{ p.warehouse }}{% endif %}</span>{% endif %}
     </div>
 
-    {% if p.stock_qty > 0 %}
-    <form class="buy-box" method="post" action="{{ url_for('store.cart_add') }}">
+    <form class="buy-box" method="post" action="{{ url_for('store.cart_add') if p.stock_qty > 0 and not p.quote_only else url_for('store.quote_add') }}">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
       <input type="hidden" name="product_id" value="{{ p.id }}">
-      <label>Qty <input type="number" name="qty" value="{{ p.moq }}" min="{{ p.moq }}" max="{{ p.stock_qty }}" step="1"></label>
-      <button class="btn btn-primary" type="submit">Add to cart</button>
+      <label>Qty <input type="number" name="qty" value="{{ p.moq }}" min="1" step="1"></label>
+      {% if p.quote_only or p.stock_qty <= 0 %}
+        <button class="btn btn-primary" type="submit">Add to quote list</button>
+      {% else %}
+        <button class="btn btn-primary" type="submit">Add to cart</button>
+        <button class="btn" type="submit" formaction="{{ url_for('store.quote_add') }}">Add to quote list</button>
+      {% endif %}
     </form>
     {% if p.moq > 1 %}<p class="small muted">Minimum order: {{ p.moq }} {{ p.unit|plural(p.moq) }}</p>{% endif %}
-    {% endif %}
-    <p class="small"><a href="{{ url_for('store.quote', sku=p.sku) }}">Need more than we list, or delivery outside our area? Request a quote →</a></p>
+    <p class="small muted">Buying in bulk or need delivery outside our area? Add items to your quote list and send it to us{% if site.whatsapp %} by WhatsApp or email{% endif %} — no prices needed.</p>
 
     {% if p.description %}<div class="desc"><p>{{ p.description }}</p></div>{% endif %}
 

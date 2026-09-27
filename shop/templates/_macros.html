@@ -20,6 +20,10 @@
     <div class="card-body">
       <div class="muted small">{{ p.category_name or "" }}</div>
       <div class="pname">{{ p.name }}</div>
+      {% if p.quote_only %}
+      <div class="price-row"><span class="price quote">Price on request</span></div>
+      <div class="small tier-hint">Request a quote →</div>
+      {% else %}
       <div class="price-row">
         <span class="price">{{ p.price_cents|money }}</span><span class="muted"> / {{ p.unit }}</span>
         {% if p.compare_at_cents and p.compare_at_cents > p.price_cents %}
@@ -28,6 +32,7 @@
       </div>
       {% if p.best_tier_cents and p.best_tier_cents < p.price_cents %}
         <div class="small tier-hint">As low as {{ p.best_tier_cents|money }} in bulk</div>
+      {% endif %}
       {% endif %}
       {{ stock_badge(p) }}
     </div>

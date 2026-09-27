@@ -42,7 +42,7 @@
         <div>Subtotal <strong>{{ subtotal|money }}</strong></div>
         <div class="small muted">Pickup is free. Delivery options at checkout.</div>
         <a class="btn btn-primary {% if problems %}disabled{% endif %}" href="{{ url_for('store.checkout') }}">Checkout</a>
-        <a class="small" href="{{ url_for('store.quote', **{'from': 'cart'}) }}">Big order? Get a custom quote for this cart</a>
+        <button class="link-btn small" formaction="{{ url_for('store.quote_from_cart') }}" formnovalidate>Big order? Request a custom quote for this cart instead</button>
       </div>
     </div>
   </form>
