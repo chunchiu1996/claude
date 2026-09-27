@@ -1,0 +1,24 @@
+{% extends "admin/_layout.html" %}
+{% block admin_title %}Factories{% endblock %}
+{% block admin_content %}
+<div class="section-head">
+  <h1>Factories (consignors)</h1>
+  <a class="btn btn-primary" href="{{ url_for('admin.supplier_form') }}">+ Add factory</a>
+</div>
+<div class="table-wrap">
+<table class="data">
+  <thead><tr><th>Factory</th><th>Location</th><th class="num">Commission</th><th class="num">SKUs</th><th class="num">Units on hand</th><th class="num">Sales</th><th class="num">Owed to factory</th></tr></thead>
+  {% for r in rows %}
+    <tr>
+      <td><a href="{{ url_for('admin.supplier_detail', supplier_id=r.s.id) }}">{{ r.s.name }}</a></td>
+      <td>{{ r.s.location or "—" }}</td>
+      <td class="num">{{ r.s.commission_rate|pct }}</td>
+      <td class="num">{{ r.sku_count }}</td>
+      <td class="num">{{ "{:,}".format(r.units) }}</td>
+      <td class="num">{{ r.st.gross_cents|money }}</td>
+      <td class="num"><strong>{{ r.st.balance_cents|money }}</strong></td>
+    </tr>
+  {% else %}<tr><td colspan="7" class="muted">No factories yet.</td></tr>{% endfor %}
+</table>
+</div>
+{% endblock %}

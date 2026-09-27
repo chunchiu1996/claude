@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% from "_macros.html" import product_image %}
+{% block title %}Cart · {{ site.name }}{% endblock %}
+{% block content %}
+<h1>Your cart</h1>
+{% if not lines %}
+  <div class="empty">
+    <p>Your cart is empty.</p>
+    <a class="btn btn-primary" href="{{ url_for('store.catalog') }}">Browse products</a>
+  </div>
+{% else %}
+  {% for problem in problems %}<div class="flash flash-error">{{ problem }}</div>{% endfor %}
+  <form method="post" action="{{ url_for('store.cart_update') }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <div class="table-wrap">
+    <table class="cart-table">
+      <thead><tr><th colspan="2">Product</th><th>Unit price</th><th>Qty</th><th class="num">Total</th><th></th></tr></thead>
+      <tbody>
+      {% for line in lines %}{% set p = line.product %}
+        <tr>
+          <td class="thumb">{{ product_image(p, "thumb") }}</td>
+          <td>
+            <a href="{{ url_for('store.product', slug=p.slug) }}">{{ p.name }}</a>
+            <div class="small muted">SKU {{ p.sku }}{% if p.unit_note %} · {{ p.unit_note }}{% endif %}</div>
+            {% if line.next_tier %}
+              <div class="small tier-hint">Buy {{ line.next_tier[0] }}+ and pay {{ line.next_tier[1]|money }} per {{ p.unit }}</div>
+            {% endif %}
+          </td>
+          <td>{{ line.unit_price_cents|money }} <span class="muted small">/ {{ p.unit }}</span>
+            {% if line.savings_cents %}<div class="small save">Volume price</div>{% endif %}</td>
+          <td><input class="qty" type="number" name="qty_{{ p.id }}" value="{{ line.qty }}" min="0" max="{{ p.stock_qty }}" aria-label="Quantity"></td>
+          <td class="num">{{ line.line_total_cents|money }}</td>
+          <td><button class="link-btn" name="remove" value="{{ p.id }}" aria-label="Remove {{ p.name }}">Remove</button></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    <div class="cart-footer">
+      <button class="btn" type="submit">Update quantities</button>
+      <div class="cart-total">
+        <div>Subtotal <strong>{{ subtotal|money }}</strong></div>
+        <div class="small muted">Pickup is free. Delivery options at checkout.</div>
+        <a class="btn btn-primary {% if problems %}disabled{% endif %}" href="{{ url_for('store.checkout') }}">Checkout</a>
+        <a class="small" href="{{ url_for('store.quote', **{'from': 'cart'}) }}">Big order? Get a custom quote for this cart</a>
+      </div>
+    </div>
+  </form>
+{% endif %}
+{% endblock %}

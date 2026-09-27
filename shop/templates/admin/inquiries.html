@@ -1,0 +1,28 @@
+{% extends "admin/_layout.html" %}
+{% from "_macros.html" import status_pill %}
+{% block admin_title %}Inquiries{% endblock %}
+{% block admin_content %}
+<h1>Inquiries</h1>
+<nav class="tabs">
+  <a href="{{ url_for('admin.inquiries') }}" {% if not kind %}class="active"{% endif %}>All</a>
+  <a href="{{ url_for('admin.inquiries', kind='quote') }}" {% if kind == 'quote' %}class="active"{% endif %}>Bulk quotes</a>
+  <a href="{{ url_for('admin.inquiries', kind='supplier') }}" {% if kind == 'supplier' %}class="active"{% endif %}>Factory applications</a>
+</nav>
+{% for i in inquiries %}
+  <article class="panel inquiry">
+    <div class="section-head">
+      <div><strong>{{ i.company or i.name }}</strong> <span class="muted small">· {{ "Factory application" if i.kind == 'supplier' else "Bulk quote" }} · {{ i.created_at[:16] }}</span></div>
+      <form method="post" class="inline">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="id" value="{{ i.id }}">
+        <select name="status" onchange="this.form.submit()">
+          {% for s in ('new', 'contacted', 'quoted', 'won', 'lost') %}<option {% if s == i.status %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+        <noscript><button class="btn btn-sm">Save</button></noscript>
+      </form>
+    </div>
+    <p class="small">{{ i.name }}{% if i.role %} · {{ i.role }}{% endif %} · <a href="mailto:{{ i.email }}">{{ i.email }}</a>{% if i.phone %} · {{ i.phone }}{% endif %}{% if i.location %} · 📍 {{ i.location }}{% endif %}</p>
+    {% if i.items %}<pre class="items">{{ i.items }}</pre>{% endif %}
+    {% if i.message %}<p>{{ i.message }}</p>{% endif %}
+  </article>
+{% else %}<p class="muted">No inquiries yet.</p>{% endfor %}
+{% endblock %}

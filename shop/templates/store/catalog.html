@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% from "_macros.html" import product_card %}
+{% block title %}{{ category.name if category else ("Search: " ~ q if q else "All products") }} · {{ site.name }}{% endblock %}
+{% block description %}{{ category.description if category and category.description else site.tagline }}{% endblock %}
+{% block content %}
+<div class="catalog-head">
+  <div>
+    <h1>{{ category.name if category else ("Results for “" ~ q ~ "”" if q else "All products") }}</h1>
+    {% if category and category.description %}<p class="muted">{{ category.description }}</p>{% endif %}
+    <p class="muted small">{{ total }} product{{ "s" if total != 1 }}</p>
+  </div>
+  <form class="filters" method="get">
+    {% if q %}<input type="hidden" name="q" value="{{ q }}">{% endif %}
+    <label class="check"><input type="checkbox" name="in_stock" value="1" {% if in_stock %}checked{% endif %} onchange="this.form.submit()"> In stock only</label>
+    <select name="sort" onchange="this.form.submit()" aria-label="Sort">
+      {% for key, (label, _) in sorts.items() %}<option value="{{ key }}" {% if key == sort %}selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select>
+    <noscript><button class="btn btn-sm">Apply</button></noscript>
+  </form>
+</div>
+
+{% if products %}
+  <div class="product-grid">{% for p in products %}{{ product_card(p) }}{% endfor %}</div>
+  {% if pages > 1 %}
+  <nav class="pager">
+    {% for n in range(1, pages + 1) %}
+      <a href="{{ page_url(n) }}" {% if n == page %}class="current"{% endif %}>{{ n }}</a>
+    {% endfor %}
+  </nav>
+  {% endif %}
+{% else %}
+  <div class="empty">
+    <p>No products match. Can't find what you need? We source directly from factories —</p>
+    <a class="btn btn-primary" href="{{ url_for('store.quote') }}">Tell us what you're looking for</a>
+  </div>
+{% endif %}
+{% endblock %}

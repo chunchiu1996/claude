@@ -1,0 +1,28 @@
+{% extends "admin/_layout.html" %}
+{% from "_macros.html" import status_pill %}
+{% block admin_title %}Orders{% endblock %}
+{% block admin_content %}
+<h1>Orders</h1>
+<nav class="tabs">
+  <a href="{{ url_for('admin.orders_list') }}" {% if not status %}class="active"{% endif %}>All</a>
+  {% for key, label in statuses.items() %}<a href="{{ url_for('admin.orders_list', status=key) }}" {% if status == key %}class="active"{% endif %}>{{ label }}</a>{% endfor %}
+</nav>
+<div class="table-wrap">
+<table class="data">
+  <thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>Fulfillment</th><th>Payment</th><th class="num">Total</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for o in orders %}
+    <tr>
+      <td><a href="{{ url_for('admin.order_detail', order_id=o.id) }}">{{ o.number }}</a></td>
+      <td>{{ o.created_at[:16] }}</td>
+      <td>{{ o.customer_name }}{% if o.company %}<div class="small muted">{{ o.company }}</div>{% endif %}</td>
+      <td>{{ o.fulfillment }}</td>
+      <td>{{ o.payment_method }}</td>
+      <td class="num">{{ o.total_cents|money }}</td>
+      <td>{{ status_pill(o.status) }}</td>
+    </tr>
+  {% else %}<tr><td colspan="7" class="muted">No orders.</td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endblock %}

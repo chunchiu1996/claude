@@ -1,0 +1,29 @@
+{% extends "admin/_layout.html" %}
+{% block admin_title %}Categories{% endblock %}
+{% block admin_content %}
+<h1>Categories</h1>
+<div class="table-wrap">
+<table class="data">
+  <thead><tr><th>Name</th><th>Description</th><th>Sort</th><th class="num">Products</th><th></th></tr></thead>
+  {% for c in categories %}
+  {% set fid = "cat-" ~ c.id %}
+  <tr>
+    <td><form id="{{ fid }}" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="id" value="{{ c.id }}"></form>
+      <input form="{{ fid }}" name="name" value="{{ c.name }}" required></td>
+    <td><input form="{{ fid }}" name="description" value="{{ c.description or '' }}"></td>
+    <td><input form="{{ fid }}" name="sort_order" type="number" value="{{ c.sort_order }}" class="qty"></td>
+    <td class="num">{{ c.product_count }}</td>
+    <td><button form="{{ fid }}" class="btn btn-sm">Save</button></td>
+  </tr>
+  {% endfor %}
+  <tr>
+    <td><form id="cat-new" method="post"><input type="hidden" name="_csrf" value="{{ csrf_token() }}"></form>
+      <input form="cat-new" name="name" placeholder="New category" required></td>
+    <td><input form="cat-new" name="description" placeholder="Short description"></td>
+    <td><input form="cat-new" name="sort_order" type="number" value="100" class="qty"></td>
+    <td></td>
+    <td><button form="cat-new" class="btn btn-sm btn-primary">Add</button></td>
+  </tr>
+</table>
+</div>
+{% endblock %}

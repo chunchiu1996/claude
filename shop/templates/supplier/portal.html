@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block lang %}zh-Hans{% endblock %}
+{% block title %}{{ supplier.name }} · Consignment dashboard 寄售报表{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block header %}
+<header class="admin-header"><div class="wrap header-row">
+  <span class="logo">{{ site.name }} <span class="muted">· Partner dashboard 合作伙伴报表</span></span>
+</div></header>
+{% endblock %}
+{% block footer %}
+<footer class="site-footer"><div class="wrap small">Questions? 如有疑问请联系 <a href="mailto:{{ site.email }}">{{ site.email }}</a>{% if site.phone %} · {{ site.phone }}{% endif %}</div></footer>
+{% endblock %}
+{% block content %}
+<h1>{{ supplier.name }}</h1>
+<p class="muted">Consignment report · 寄售报表 — {{ site.warehouse }} · Commission 佣金 {{ supplier.commission_rate|pct }}</p>
+{% include "_statement.html" %}
+{% endblock %}

@@ -1,0 +1,55 @@
+{% macro product_image(p, cls="") -%}
+  {% if p.image_url %}
+    <img class="pimg {{ cls }}" src="{{ p.image_url }}" alt="{{ p.name }}" loading="lazy">
+  {% else %}
+    <div class="pimg ph {{ cls }}" style="--hue: {{ ((p.category_id or 3) * 53) % 360 }}" aria-hidden="true">
+      <span>{{ p.category_name or "Product" }}</span>
+    </div>
+  {% endif %}
+{%- endmacro %}
+
+{% macro stock_badge(p) -%}
+  {% if p.stock_qty <= 0 %}<span class="stock out">Out of stock</span>
+  {% elif p.stock_qty < 20 %}<span class="stock low">Only {{ p.stock_qty }} left</span>
+  {% else %}<span class="stock in">In stock</span>{% endif %}
+{%- endmacro %}
+
+{% macro product_card(p) -%}
+  <a class="card product-card" href="{{ url_for('store.product', slug=p.slug) }}">
+    {{ product_image(p) }}
+    <div class="card-body">
+      <div class="muted small">{{ p.category_name or "" }}</div>
+      <div class="pname">{{ p.name }}</div>
+      <div class="price-row">
+        <span class="price">{{ p.price_cents|money }}</span><span class="muted"> / {{ p.unit }}</span>
+        {% if p.compare_at_cents and p.compare_at_cents > p.price_cents %}
+          <span class="save">-{{ ((1 - p.price_cents / p.compare_at_cents) * 100)|round|int }}%</span>
+        {% endif %}
+      </div>
+      {% if p.best_tier_cents and p.best_tier_cents < p.price_cents %}
+        <div class="small tier-hint">As low as {{ p.best_tier_cents|money }} in bulk</div>
+      {% endif %}
+      {{ stock_badge(p) }}
+    </div>
+  </a>
+{%- endmacro %}
+
+{% macro field(name, label, form, errors, type="text", required=false, placeholder="", attrs="") -%}
+  <label class="field{% if errors.get(name) %} has-error{% endif %}">
+    <span>{{ label }}{% if required %} *{% endif %}</span>
+    <input type="{{ type }}" name="{{ name }}" value="{{ form.get(name, '') or '' }}" placeholder="{{ placeholder }}" {% if required %}required{% endif %} {{ attrs|safe }}>
+    {% if errors.get(name) %}<em class="error">{{ errors[name] }}</em>{% endif %}
+  </label>
+{%- endmacro %}
+
+{% macro textarea(name, label, form, errors, rows=4, required=false, placeholder="") -%}
+  <label class="field{% if errors.get(name) %} has-error{% endif %}">
+    <span>{{ label }}{% if required %} *{% endif %}</span>
+    <textarea name="{{ name }}" rows="{{ rows }}" placeholder="{{ placeholder }}" {% if required %}required{% endif %}>{{ form.get(name, '') or '' }}</textarea>
+    {% if errors.get(name) %}<em class="error">{{ errors[name] }}</em>{% endif %}
+  </label>
+{%- endmacro %}
+
+{% macro status_pill(status, label=None) -%}
+  <span class="pill pill-{{ status }}">{{ label or status|replace('_', ' ') }}</span>
+{%- endmacro %}

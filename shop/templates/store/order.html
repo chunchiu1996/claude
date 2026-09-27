@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_pill %}
+{% block title %}Order {{ order.number }} · {{ site.name }}{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block content %}
+<div class="form-card narrow">
+  {% if order.status == 'cancelled' %}
+    <h1>Order {{ order.number }} was cancelled</h1>
+    <p>Questions? Email <a href="mailto:{{ site.email }}">{{ site.email }}</a>.</p>
+  {% elif order.status == 'pending_payment' and order.payment_method == 'card' %}
+    <h1>We're confirming your payment…</h1>
+    <p>Order <strong>{{ order.number }}</strong> is reserved. If you completed payment, refresh this page in a moment.</p>
+  {% else %}
+    <h1>Thank you — order {{ order.number }} is confirmed.</h1>
+    {% if order.status == 'pending_payment' %}
+      <p>Your items are <strong>reserved</strong>. We'll email an invoice to <strong>{{ order.email }}</strong> within one business day. We hold them for you while payment is arranged.</p>
+    {% else %}
+      <p>Payment received. We'll contact you at <strong>{{ order.phone or order.email }}</strong> to schedule {{ "delivery" if order.fulfillment == 'delivery' else "pickup" }}.</p>
+    {% endif %}
+  {% endif %}
+  <p>Status: {{ status_pill(order.status) }} · Bookmark this page to check your order.</p>
+
+  <table class="plain">
+    {% for item in items %}
+      <tr><td>{{ item.name }} <span class="muted small">({{ item.sku }})</span></td><td>{{ item.qty }} × {{ item.unit_price_cents|money }}</td><td class="num">{{ item.line_total_cents|money }}</td></tr>
+    {% endfor %}
+    <tr><td colspan="2">Subtotal</td><td class="num">{{ order.subtotal_cents|money }}</td></tr>
+    <tr><td colspan="2">{{ "Delivery" if order.fulfillment == 'delivery' else "Warehouse pickup" }}</td><td class="num">{{ order.shipping_cents|money }}</td></tr>
+    <tr class="total"><td colspan="2">Total</td><td class="num">{{ order.total_cents|money }}</td></tr>
+  </table>
+  {% if order.fulfillment == 'pickup' %}<p class="small muted">Pickup at {{ site.warehouse }}. Please bring your order number.</p>
+  {% else %}<p class="small muted">Delivering to {{ order.address }}, {{ order.city }}, {{ order.state }} {{ order.zip }}.</p>{% endif %}
+  <a class="btn" href="{{ url_for('store.catalog') }}">Continue shopping</a>
+</div>
+{% endblock %}

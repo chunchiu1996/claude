@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, textarea %}
+{% block title %}Contractor & bulk quotes · {{ site.name }}{% endblock %}
+{% block content %}
+<div class="two-col">
+  <div>
+    <h1>Contractor &amp; bulk pricing</h1>
+    <p class="lead">Buying by the pallet, outfitting a multi-unit project, or stocking a store? Send us your list and we'll reply within one business day with project pricing, availability and delivery options.</p>
+    <ul class="checks">
+      <li>Pallet and container-load pricing</li>
+      <li>Mixed orders across flooring, tile, cabinets and fixtures</li>
+      <li>Freight delivery outside our local area</li>
+      <li>Special orders sourced directly from our factory partners</li>
+    </ul>
+  </div>
+  <form method="post" class="form-card" novalidate>
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <div class="grid-2">
+      {{ field("name", "Your name", data, errors, required=true) }}
+      {{ field("company", "Company", data, errors) }}
+      {{ field("email", "Email", data, errors, type="email", required=true) }}
+      {{ field("phone", "Phone", data, errors, type="tel") }}
+    </div>
+    <div class="grid-2">
+      <label class="field"><span>I am a…</span>
+        <select name="role">
+          <option value="">Select</option>
+          {% for t in customer_types %}<option {% if data.get('role') == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+        </select>
+      </label>
+      {{ field("location", "Project ZIP code", data, errors) }}
+    </div>
+    {{ textarea("items", "What do you need? (SKU or description and quantity)", data, errors, rows=5, required=true, placeholder="e.g. TIL-POR-2448-CAL × 300 boxes") }}
+    {{ textarea("message", "Timeline, delivery details, anything else", data, errors, rows=3) }}
+    <button class="btn btn-primary btn-block" type="submit">Request quote</button>
+  </form>
+</div>
+{% endblock %}

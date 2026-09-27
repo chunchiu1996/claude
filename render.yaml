@@ -1,0 +1,26 @@
+# One-click deploy on Render (https://render.com): New > Blueprint > pick this repo.
+services:
+  - type: web
+    name: homesource-shop
+    runtime: docker
+    plan: starter            # ~$7/mo; a persistent disk requires a paid plan
+    healthCheckPath: /
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        sync: false          # you'll be prompted for it
+      - key: SITE_NAME
+        value: HomeSource Direct
+      - key: CONTACT_EMAIL
+        sync: false
+      - key: CONTACT_PHONE
+        sync: false
+      - key: WAREHOUSE_ADDRESS
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false          # optional: leave blank to take orders as pay-by-invoice

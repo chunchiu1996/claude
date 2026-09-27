@@ -1,0 +1,16 @@
+{% extends "admin/_layout.html" %}
+{% block admin_title %}Log in{% endblock %}
+{% block admin_content %}
+<div class="form-card narrow">
+  <h1>Staff login</h1>
+  {% if enabled %}
+  <form method="post">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="field"><span>Password</span><input type="password" name="password" autofocus required autocomplete="current-password"></label>
+    <button class="btn btn-primary btn-block">Log in</button>
+  </form>
+  {% else %}
+  <p>Admin is disabled until you set the <code>ADMIN_PASSWORD</code> environment variable and restart the server.</p>
+  {% endif %}
+</div>
+{% endblock %}

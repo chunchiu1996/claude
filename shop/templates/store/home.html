@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_macros.html" import product_card %}
+{% block content %}
+<section class="hero">
+  <div>
+    <p class="eyebrow">Factory-direct · Already in the USA</p>
+    <h1>Pro-grade flooring, tile, cabinets &amp; fixtures at up to 50% below big-box prices.</h1>
+    <p class="lead">We stock overrun and export inventory straight from the manufacturers in our {{ site.warehouse }} warehouse. No overseas lead times — pick up this week or get it delivered.</p>
+    <div class="hero-actions">
+      <a class="btn btn-primary" href="{{ url_for('store.catalog', in_stock=1) }}">Shop in-stock deals</a>
+      <a class="btn" href="{{ url_for('store.quote') }}">Get contractor pricing</a>
+    </div>
+  </div>
+  <ul class="hero-points">
+    <li><strong>Factory pricing</strong><span>No middlemen between the production line and you.</span></li>
+    <li><strong>Volume discounts</strong><span>Prices drop automatically as quantity goes up.</span></li>
+    <li><strong>Local stock</strong><span>Warehouse pickup or local delivery — no 8-week ocean wait.</span></li>
+    <li><strong>Trade accounts</strong><span>Contractors, flippers and retailers: ask for a project quote.</span></li>
+  </ul>
+</section>
+
+<section>
+  <div class="section-head"><h2>Shop by category</h2></div>
+  <div class="cat-grid">
+    {% for c in categories if c.product_count %}
+      <a class="cat-tile" href="{{ url_for('store.catalog', slug=c.slug) }}" style="--hue: {{ (c.id * 53) % 360 }}">
+        <strong>{{ c.name }}</strong>
+        <span>{{ c.description or "" }}</span>
+        <em>{{ c.product_count }} product{{ "s" if c.product_count != 1 }}</em>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+
+{% if featured %}
+<section>
+  <div class="section-head"><h2>In stock now</h2><a href="{{ url_for('store.catalog') }}">See everything →</a></div>
+  <div class="product-grid">{% for p in featured %}{{ product_card(p) }}{% endfor %}</div>
+</section>
+{% endif %}
+
+<section class="trade-band">
+  <div>
+    <h2>Buying for a project or a store?</h2>
+    <p>Tell us what you need — full pallets, mixed containers, or a whole-house package — and we'll send a quote within one business day.</p>
+  </div>
+  <a class="btn btn-primary" href="{{ url_for('store.quote') }}">Request a bulk quote</a>
+</section>
+{% endblock %}

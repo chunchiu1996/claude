@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}{% block admin_title %}Admin{% endblock %} · {{ site.name }} admin{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block header %}
+<header class="admin-header">
+  <div class="wrap header-row">
+    <a class="logo" href="{{ url_for('admin.dashboard') }}">{{ site.name }} <span class="muted">admin</span></a>
+    {% if session.get('admin') %}
+    <nav class="admin-nav">
+      {% set ep = request.endpoint or '' %}
+      <a href="{{ url_for('admin.dashboard') }}" {% if ep == 'admin.dashboard' %}class="active"{% endif %}>Dashboard</a>
+      <a href="{{ url_for('admin.orders_list') }}" {% if 'order' in ep %}class="active"{% endif %}>Orders</a>
+      <a href="{{ url_for('admin.products') }}" {% if 'product' in ep %}class="active"{% endif %}>Products</a>
+      <a href="{{ url_for('admin.import_view') }}" {% if 'import' in ep %}class="active"{% endif %}>Import</a>
+      <a href="{{ url_for('admin.suppliers') }}" {% if 'supplier' in ep %}class="active"{% endif %}>Factories</a>
+      <a href="{{ url_for('admin.inquiries') }}" {% if 'inquir' in ep %}class="active"{% endif %}>Inquiries</a>
+      <a href="{{ url_for('admin.categories') }}" {% if 'categor' in ep %}class="active"{% endif %}>Categories</a>
+      <a href="{{ url_for('store.home') }}" target="_blank">View shop ↗</a>
+      <form method="post" action="{{ url_for('admin.logout') }}" class="inline">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link-btn">Log out</button>
+      </form>
+    </nav>
+    {% endif %}
+  </div>
+</header>
+{% endblock %}
+{% block footer %}{% endblock %}
+{% block content %}{% block admin_content %}{% endblock %}{% endblock %}

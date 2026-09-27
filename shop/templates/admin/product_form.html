@@ -1,0 +1,88 @@
+{% extends "admin/_layout.html" %}
+{% from "_macros.html" import field, textarea, product_image %}
+{% block admin_title %}{{ product.name if product else "New product" }}{% endblock %}
+{% block admin_content %}
+<p class="small"><a href="{{ url_for('admin.products') }}">← Products</a></p>
+<h1>{{ product.name if product else "New product" }}</h1>
+{% if product %}<p class="muted">In stock: <strong>{{ "{:,}".format(product.stock_qty) }}</strong> {{ product.unit|plural(product.stock_qty) }}
+  {% if product.active %}· <a href="{{ url_for('store.product', slug=product.slug) }}" target="_blank">View in shop ↗</a>{% endif %}</p>{% endif %}
+
+<div class="two-col wide-left">
+<form method="post" enctype="multipart/form-data" class="form-card" novalidate>
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <div class="grid-2">
+    {{ field("sku", "SKU", form, errors, required=true) }}
+    {{ field("name", "Product name", form, errors, required=true) }}
+  </div>
+  <div class="grid-2">
+    <label class="field"><span>Category</span>
+      <select name="category_id"><option value="">—</option>
+        {% for c in categories %}<option value="{{ c.id }}" {% if form.get('category_id') == c.id|string %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+      </select>
+    </label>
+    {{ field("new_category", "…or new category", form, errors, placeholder="e.g. Outdoor") }}
+  </div>
+  <label class="field"><span>Factory / supplier (consignor)</span>
+    <select name="supplier_id"><option value="">—</option>
+      {% for s in suppliers %}<option value="{{ s.id }}" {% if form.get('supplier_id') == s.id|string %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+    </select>
+  </label>
+  <div class="grid-3">
+    {{ field("price", "Price per unit ($)", form, errors, required=true, placeholder="42.50") }}
+    {{ field("compare_at", "Typical retail ($)", form, errors, placeholder="66.00") }}
+    {{ field("moq", "Minimum order", form, errors, type="number", attrs='min="1"') }}
+  </div>
+  <div class="grid-2">
+    {{ field("unit", "Sold by (unit)", form, errors, placeholder="box, piece, set, sheet") }}
+    {{ field("unit_note", "Unit details", form, errors, placeholder="23.64 sq ft per box") }}
+  </div>
+  {{ field("tiers", "Volume pricing (QTY:PRICE, separated by |)", form, errors, placeholder="20:38.99 | 100:35.45") }}
+  {{ textarea("description", "Description", form, errors, rows=4) }}
+  {{ textarea("specs", "Specifications (one 'Key: Value' per line)", form, errors, rows=6, placeholder="Thickness: 7mm\nWear layer: 20 mil") }}
+  <div class="grid-2">
+    {{ field("warehouse", "Warehouse location", form, errors, placeholder="Ontario, CA") }}
+    {{ field("image_url", "Image URL", form, errors, placeholder="https://…") }}
+  </div>
+  <label class="field{% if errors.get('image') %} has-error{% endif %}"><span>…or upload an image</span><input type="file" name="image" accept="image/*">
+    {% if errors.get('image') %}<em class="error">{{ errors.image }}</em>{% endif %}</label>
+  {% if product and product.image_url %}<label class="check"><input type="checkbox" name="remove_image" value="1"> Remove current image</label>{% endif %}
+  {% if not product %}
+  <div class="grid-2">
+    {{ field("initial_stock", "Initial stock received", form, errors, type="number", attrs='min="0"') }}
+    {{ field("reference", "Shipment / container ref", form, errors, placeholder="MSKU1234567") }}
+  </div>
+  {% endif %}
+  <label class="check"><input type="checkbox" name="active" value="1" {% if form.get('active') %}checked{% endif %}> Visible in shop</label>
+  <label class="check"><input type="checkbox" name="featured" value="1" {% if form.get('featured') %}checked{% endif %}> Featured on home page</label>
+  <button class="btn btn-primary">{{ "Save changes" if product else "Create product" }}</button>
+</form>
+
+{% if product %}
+<aside>
+  <div class="panel">{{ product_image(product) }}</div>
+  <div class="panel" id="stock">
+    <h2 class="h3">Receive stock</h2>
+    <form method="post" action="{{ url_for('admin.product_stock', product_id=product.id) }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="receive">
+      <label class="field"><span>Units received</span><input type="number" name="qty" min="1" required></label>
+      <label class="field"><span>Container / shipment ref</span><input name="reference" placeholder="MSKU1234567"></label>
+      <button class="btn btn-sm">Add to stock</button>
+    </form>
+    <h2 class="h3">Adjust stock</h2>
+    <form method="post" action="{{ url_for('admin.product_stock', product_id=product.id) }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="kind" value="adjust">
+      <label class="field"><span>Change (+/−)</span><input type="number" name="qty" required placeholder="-3"></label>
+      <label class="field"><span>Reason</span><input name="note" required placeholder="Damaged in warehouse, recount…"></label>
+      <button class="btn btn-sm">Adjust</button>
+    </form>
+    <h2 class="h3">Stock history</h2>
+    <table class="data small">
+      {% for m in movements %}
+        <tr><td>{{ m.created_at[:10] }}</td><td>{{ m.kind }}</td><td class="num {{ 'neg' if m.qty_change < 0 }}">{{ "%+d"|format(m.qty_change) }}</td><td>{{ m.reference or "" }}{% if m.note %} <span class="muted">· {{ m.note }}</span>{% endif %}</td></tr>
+      {% else %}<tr><td class="muted">No movements yet.</td></tr>{% endfor %}
+    </table>
+  </div>
+</aside>
+{% endif %}
+</div>
+{% endblock %}

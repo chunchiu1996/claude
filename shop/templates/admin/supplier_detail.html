@@ -1,0 +1,37 @@
+{% extends "admin/_layout.html" %}
+{% block admin_title %}{{ supplier.name }}{% endblock %}
+{% block admin_content %}
+<p class="small"><a href="{{ url_for('admin.suppliers') }}">← Factories</a></p>
+<div class="section-head">
+  <div>
+    <h1>{{ supplier.name }}</h1>
+    <p class="muted">{{ supplier.location or "" }} · Commission {{ supplier.commission_rate|pct }}
+      {% if supplier.contact_name %} · {{ supplier.contact_name }}{% endif %}
+      {% if supplier.contact_email %} · <a href="mailto:{{ supplier.contact_email }}">{{ supplier.contact_email }}</a>{% endif %}
+      {% if supplier.contact_phone %} · {{ supplier.contact_phone }}{% endif %}</p>
+  </div>
+  <div class="actions">
+    <a class="btn" href="{{ url_for('admin.products', supplier=supplier.id) }}">Products</a>
+    <a class="btn" href="{{ url_for('admin.supplier_form', supplier_id=supplier.id) }}">Edit</a>
+  </div>
+</div>
+
+<div class="panel">
+  <strong>Factory's private dashboard link</strong> <span class="small muted">(share with the factory — shows their stock, sales and payouts in English &amp; Chinese)</span>
+  <div class="copy-row"><input readonly value="{{ portal_url }}" onclick="this.select()"><a class="btn btn-sm" href="{{ portal_url }}" target="_blank">Open ↗</a></div>
+</div>
+
+{% include "_statement.html" %}
+
+<section class="panel">
+  <h2 class="h3">Record a payout to this factory</h2>
+  <form method="post" class="grid-3">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="field"><span>Amount ($)</span><input name="amount" required placeholder="{{ '%.2f'|format(st.balance_cents / 100) if st.balance_cents > 0 else '' }}"></label>
+    <label class="field"><span>Reference</span><input name="reference" placeholder="Wire confirmation #"></label>
+    <label class="field"><span>Note</span><input name="note" placeholder="September sales"></label>
+    <button class="btn btn-primary">Record payout</button>
+  </form>
+</section>
+{% if supplier.notes %}<section class="panel"><h2 class="h3">Agreement notes</h2><p>{{ supplier.notes }}</p></section>{% endif %}
+{% endblock %}

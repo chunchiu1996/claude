@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="form-card narrow center">
+  {% if kind == "supplier" %}
+    <h1>Thank you! 谢谢！</h1>
+    <p>We've received your information and will contact you within two business days.<br>我们已收到您的信息，将在两个工作日内与您联系。</p>
+  {% else %}
+    <h1>Quote request received</h1>
+    <p>Thanks — we'll reply with pricing and availability within one business day.</p>
+  {% endif %}
+  <a class="btn btn-primary" href="{{ url_for('store.catalog') }}">Browse products</a>
+</div>
+{% endblock %}

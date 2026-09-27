@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, textarea %}
+{% block title %}Checkout · {{ site.name }}{% endblock %}
+{% block content %}
+<h1>Checkout</h1>
+<div class="checkout-layout">
+  <form method="post" class="form-card" novalidate>
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <h2 class="h3">Contact</h2>
+    <div class="grid-2">
+      {{ field("customer_name", "Full name", data, errors, required=true, attrs='autocomplete="name"') }}
+      {{ field("company", "Company (optional)", data, errors, attrs='autocomplete="organization"') }}
+      {{ field("email", "Email", data, errors, type="email", required=true, attrs='autocomplete="email"') }}
+      {{ field("phone", "Phone", data, errors, type="tel", required=true, attrs='autocomplete="tel"') }}
+    </div>
+    <label class="field"><span>I am a…</span>
+      <select name="customer_type">
+        <option value="">Select (optional)</option>
+        {% for t in customer_types %}<option {% if data.get('customer_type') == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+      </select>
+    </label>
+
+    <h2 class="h3">Pickup or delivery</h2>
+    <div class="radio-cards">
+      <label class="radio-card"><input type="radio" name="fulfillment" value="pickup" {% if data.get('fulfillment') != 'delivery' %}checked{% endif %}>
+        <span><strong>Warehouse pickup — Free</strong><br><span class="small muted">{{ site.warehouse }}. We'll call when it's ready (usually 1–2 business days).</span></span></label>
+      <label class="radio-card"><input type="radio" name="fulfillment" value="delivery" {% if data.get('fulfillment') == 'delivery' %}checked{% endif %}>
+        <span><strong>Local delivery — {{ delivery_fee|money }}</strong><br><span class="small muted">Curbside/liftgate delivery within our local service area. We'll call to schedule.</span></span></label>
+    </div>
+    {% if errors.get('fulfillment') %}<em class="error">{{ errors.fulfillment }}</em>{% endif %}
+    <div class="grid-2">
+      {{ field("address", "Street address (for delivery)", data, errors, attrs='autocomplete="street-address"') }}
+      {{ field("city", "City", data, errors, attrs='autocomplete="address-level2"') }}
+      {{ field("state", "State", data, errors, attrs='autocomplete="address-level1"') }}
+      {{ field("zip", "ZIP", data, errors, attrs='autocomplete="postal-code"') }}
+    </div>
+    {{ textarea("notes", "Order notes (optional)", data, errors, rows=3, placeholder="Gate code, preferred pickup day, job site details…") }}
+
+    <h2 class="h3">Payment</h2>
+    <div class="radio-cards">
+      {% if 'card' in methods %}
+      <label class="radio-card"><input type="radio" name="payment_method" value="card" {% if data.get('payment_method', 'card') == 'card' %}checked{% endif %}>
+        <span><strong>Pay now by card</strong><br><span class="small muted">Secure checkout by Stripe.</span></span></label>
+      {% endif %}
+      {% if 'invoice' in methods %}
+      <label class="radio-card"><input type="radio" name="payment_method" value="invoice" {% if data.get('payment_method') == 'invoice' or methods == ['invoice'] %}checked{% endif %}>
+        <span><strong>Reserve now, pay by invoice</strong><br><span class="small muted">We hold your items and email an invoice (Zelle, ACH, check, or card on pickup).</span></span></label>
+      {% endif %}
+    </div>
+    {% if errors.get('payment_method') %}<em class="error">{{ errors.payment_method }}</em>{% endif %}
+
+    <button class="btn btn-primary btn-block" type="submit">Place order</button>
+  </form>
+
+  <aside class="summary">
+    <h2 class="h3">Order summary</h2>
+    {% for line in lines %}
+      <div class="summary-line"><span>{{ line.product.name }} <span class="muted">× {{ line.qty }}</span></span><span>{{ line.line_total_cents|money }}</span></div>
+    {% endfor %}
+    <div class="summary-line total"><span>Subtotal</span><span>{{ subtotal|money }}</span></div>
+    <p class="small muted">Delivery fee added if selected. Sales tax, if applicable, is added on your invoice.</p>
+  </aside>
+</div>
+{% endblock %}

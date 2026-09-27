@@ -1,0 +1,48 @@
+{# Shared by the admin factory page and the factory's own portal. Render with zh=True for Chinese labels. #}
+{% macro t(en, cn) %}{{ en }}{% if zh %} <span class="zh">{{ cn }}</span>{% endif %}{% endmacro %}
+<div class="stats">
+  <div class="stat"><span>{{ t("Total sales", "销售总额") }}</span><strong>{{ st.gross_cents|money }}</strong></div>
+  <div class="stat"><span>{{ t("Commission", "佣金") }}</span><strong>{{ st.commission_cents|money }}</strong></div>
+  <div class="stat"><span>{{ t("Your earnings", "应得金额") }}</span><strong>{{ st.net_cents|money }}</strong></div>
+  <div class="stat"><span>{{ t("Paid out", "已结算") }}</span><strong>{{ st.paid_out_cents|money }}</strong></div>
+  <div class="stat highlight"><span>{{ t("Balance owed", "待结算余额") }}</span><strong>{{ st.balance_cents|money }}</strong></div>
+</div>
+
+<section class="panel">
+  <h2 class="h3">{{ t("Inventory", "库存") }}</h2>
+  <div class="table-wrap">
+  <table class="data">
+    <thead><tr><th>SKU</th><th>{{ t("Product", "产品") }}</th><th class="num">{{ t("Received", "已入库") }}</th><th class="num">{{ t("Sold", "已售") }}</th><th class="num">{{ t("Reserved", "已预订") }}</th><th class="num">{{ t("On hand", "现有库存") }}</th><th class="num">{{ t("Price", "售价") }}</th></tr></thead>
+    {% for p in st.products %}
+      <tr class="{{ '' if p.active else 'inactive' }}"><td><code>{{ p.sku }}</code></td><td>{{ p.name }}</td><td class="num">{{ "{:,}".format(p.received) }}</td><td class="num">{{ "{:,}".format(p.sold) }}</td><td class="num">{{ "{:,}".format(p.reserved) }}</td><td class="num"><strong>{{ "{:,}".format(p.stock_qty) }}</strong></td><td class="num">{{ p.price_cents|money }}/{{ p.unit }}</td></tr>
+    {% else %}<tr><td colspan="7" class="muted">{{ t("No products yet.", "暂无产品") }}</td></tr>{% endfor %}
+  </table>
+  </div>
+  <p class="small muted">{{ t("Stock value at current prices", "库存按售价估值") }}: {{ st.stock_value_cents|money }}</p>
+</section>
+
+<div class="two-col">
+<section class="panel">
+  <h2 class="h3">{{ t("Sales", "销售记录") }}</h2>
+  <div class="table-wrap">
+  <table class="data small">
+    <thead><tr><th>{{ t("Date", "日期") }}</th><th>{{ t("Order", "订单") }}</th><th>SKU</th><th class="num">{{ t("Qty", "数量") }}</th><th class="num">{{ t("Sale", "金额") }}</th><th class="num">{{ t("Your share", "您的收入") }}</th></tr></thead>
+    {% for s in st.sales %}
+      <tr><td>{{ s.sold_at[:10] }}</td><td>{{ s.number }}</td><td><code>{{ s.sku }}</code></td><td class="num">{{ s.qty }}</td><td class="num">{{ s.line_total_cents|money }}</td><td class="num">{{ s.net_cents|money }}</td></tr>
+    {% else %}<tr><td colspan="6" class="muted">{{ t("No completed sales yet.", "暂无销售") }}</td></tr>{% endfor %}
+  </table>
+  </div>
+</section>
+<section class="panel">
+  <h2 class="h3">{{ t("Payouts", "结算记录") }}</h2>
+  <table class="data small">
+    {% for p in st.payouts %}<tr><td>{{ p.created_at[:10] }}</td><td>{{ p.reference or "" }}{% if p.note %} <span class="muted">· {{ p.note }}</span>{% endif %}</td><td class="num">{{ p.amount_cents|money }}</td></tr>
+    {% else %}<tr><td class="muted">{{ t("No payouts yet.", "暂无结算") }}</td></tr>{% endfor %}
+  </table>
+  <h2 class="h3">{{ t("Recent stock movements", "库存变动") }}</h2>
+  <table class="data small">
+    {% for m in st.movements %}<tr><td>{{ m.created_at[:10] }}</td><td><code>{{ m.sku }}</code></td><td>{{ m.kind }}</td><td class="num {{ 'neg' if m.qty_change < 0 }}">{{ "%+d"|format(m.qty_change) }}</td><td class="muted">{{ m.reference or "" }}</td></tr>
+    {% else %}<tr><td class="muted">—</td></tr>{% endfor %}
+  </table>
+</section>
+</div>

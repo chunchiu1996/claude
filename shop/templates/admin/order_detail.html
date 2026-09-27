@@ -1,0 +1,47 @@
+{% extends "admin/_layout.html" %}
+{% from "_macros.html" import status_pill %}
+{% block admin_title %}Order {{ order.number }}{% endblock %}
+{% block admin_content %}
+<p class="small"><a href="{{ url_for('admin.orders_list') }}">← Orders</a></p>
+<div class="section-head">
+  <h1>Order {{ order.number }} {{ status_pill(order.status) }}</h1>
+  {% if order.status != 'cancelled' %}
+  <form method="post" class="actions">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    {% if order.status == 'pending_payment' %}<button class="btn btn-primary" name="status" value="paid">Mark paid</button>{% endif %}
+    {% if order.status in ('pending_payment', 'paid') %}<button class="btn" name="status" value="fulfilled">Mark fulfilled (shipped / picked up)</button>{% endif %}
+    <button class="btn btn-danger" name="status" value="cancelled" onclick="return confirm('Cancel this order and return its items to stock?')">Cancel &amp; restock</button>
+  </form>
+  {% endif %}
+</div>
+
+<div class="two-col wide-left">
+  <section class="panel">
+    <table class="data">
+      <thead><tr><th>SKU</th><th>Item</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Total</th></tr></thead>
+      {% for i in items %}
+        <tr><td><code>{{ i.sku }}</code></td><td>{{ i.name }}</td><td class="num">{{ i.qty }}</td><td class="num">{{ i.unit_price_cents|money }}</td><td class="num">{{ i.line_total_cents|money }}</td></tr>
+      {% endfor %}
+      <tr><td colspan="4">Subtotal</td><td class="num">{{ order.subtotal_cents|money }}</td></tr>
+      <tr><td colspan="4">{{ order.fulfillment|capitalize }}</td><td class="num">{{ order.shipping_cents|money }}</td></tr>
+      <tr class="total"><td colspan="4">Total</td><td class="num">{{ order.total_cents|money }}</td></tr>
+    </table>
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <label class="field"><span>Internal note (invoice #, pickup time, tracking…)</span><textarea name="admin_note" rows="3">{{ order.admin_note or "" }}</textarea></label>
+      <button class="btn btn-sm">Save note</button>
+    </form>
+  </section>
+  <aside class="panel">
+    <h2 class="h3">Customer</h2>
+    <p><strong>{{ order.customer_name }}</strong>{% if order.company %}<br>{{ order.company }}{% endif %}<br>
+      <a href="mailto:{{ order.email }}">{{ order.email }}</a>{% if order.phone %}<br><a href="tel:{{ order.phone }}">{{ order.phone }}</a>{% endif %}</p>
+    {% if order.customer_type %}<p class="small muted">{{ order.customer_type }}</p>{% endif %}
+    <h2 class="h3">{{ "Deliver to" if order.fulfillment == 'delivery' else "Warehouse pickup" }}</h2>
+    {% if order.fulfillment == 'delivery' %}<p>{{ order.address }}<br>{{ order.city }}, {{ order.state }} {{ order.zip }}</p>{% endif %}
+    {% if order.notes %}<h2 class="h3">Customer notes</h2><p>{{ order.notes }}</p>{% endif %}
+    <p class="small muted">Placed {{ order.created_at }} UTC · Payment: {{ order.payment_method }}</p>
+    <p class="small"><a href="{{ url_for('store.order_status', number=order.number, token=order.access_token) }}" target="_blank">Customer's order page ↗</a> (share this link in your invoice email)</p>
+  </aside>
+</div>
+{% endblock %}

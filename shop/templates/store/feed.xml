@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+<channel>
+  <title>{{ site.name }}</title>
+  <link>{{ url_for('store.home', _external=True) }}</link>
+  <description>{{ site.tagline }}</description>
+  {% for p in products %}
+  <item>
+    <g:id>{{ p.sku }}</g:id>
+    <g:title>{{ p.name }}</g:title>
+    <g:description>{{ p.description or p.name }}</g:description>
+    <g:link>{{ url_for('store.product', slug=p.slug, _external=True) }}</g:link>
+    {% if p.image_url %}<g:image_link>{{ absolute(p.image_url) }}</g:image_link>{% endif %}
+    <g:availability>{{ "in_stock" if p.stock_qty > 0 else "out_of_stock" }}</g:availability>
+    <g:price>{{ "%.2f"|format(p.price_cents / 100) }} USD</g:price>
+    <g:condition>new</g:condition>
+    <g:brand>{{ site.name }}</g:brand>
+    <g:mpn>{{ p.sku }}</g:mpn>
+    {% if p.category_name %}<g:product_type>{{ p.category_name }}</g:product_type>{% endif %}
+  </item>
+  {% endfor %}
+</channel>
+</rss>

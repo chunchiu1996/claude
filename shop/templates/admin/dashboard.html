@@ -1,0 +1,38 @@
+{% extends "admin/_layout.html" %}
+{% from "_macros.html" import status_pill %}
+{% block admin_title %}Dashboard{% endblock %}
+{% block admin_content %}
+<h1>Dashboard</h1>
+<div class="stats">
+  <div class="stat"><span>Sales, last 30 days</span><strong>{{ stats.revenue_30d|money }}</strong><em>{{ stats.orders_30d }} orders</em></div>
+  <a class="stat" href="{{ url_for('admin.orders_list', status='paid') }}"><span>Paid, to fulfill</span><strong>{{ stats.to_fulfill }}</strong><em>orders</em></a>
+  <a class="stat" href="{{ url_for('admin.orders_list', status='pending_payment') }}"><span>Awaiting payment</span><strong>{{ stats.awaiting_payment }}</strong><em>send invoices</em></a>
+  <a class="stat" href="{{ url_for('admin.inquiries') }}"><span>New inquiries</span><strong>{{ stats.new_inquiries }}</strong><em>quotes &amp; factories</em></a>
+  <div class="stat"><span>Inventory at retail</span><strong>{{ stats.stock_value|money }}</strong><em>{{ stats.sku_count }} active SKUs</em></div>
+</div>
+
+<div class="two-col">
+  <section class="panel">
+    <div class="section-head"><h2 class="h3">Recent orders</h2><a href="{{ url_for('admin.orders_list') }}">All orders →</a></div>
+    <table class="data">
+      {% for o in recent %}
+        <tr><td><a href="{{ url_for('admin.order_detail', order_id=o.id) }}">{{ o.number }}</a></td><td>{{ o.customer_name }}</td><td class="num">{{ o.total_cents|money }}</td><td>{{ status_pill(o.status) }}</td></tr>
+      {% else %}<tr><td class="muted">No orders yet.</td></tr>{% endfor %}
+    </table>
+  </section>
+  <section class="panel">
+    <div class="section-head"><h2 class="h3">Low stock</h2><a href="{{ url_for('admin.products', low=1) }}">All low stock →</a></div>
+    <table class="data">
+      {% for p in low_stock %}
+        <tr><td><a href="{{ url_for('admin.product_edit', product_id=p.id) }}">{{ p.name }}</a></td><td class="muted small">{{ p.supplier_name or "" }}</td><td class="num">{{ p.stock_qty }}</td></tr>
+      {% else %}<tr><td class="muted">Nothing is running low.</td></tr>{% endfor %}
+    </table>
+    {% if inquiries %}
+    <div class="section-head"><h2 class="h3">New inquiries</h2></div>
+    <table class="data">
+      {% for i in inquiries %}<tr><td>{{ "🏭 Factory" if i.kind == 'supplier' else "Quote" }}</td><td>{{ i.company or i.name }}</td><td class="small muted">{{ i.created_at[:10] }}</td></tr>{% endfor %}
+    </table>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

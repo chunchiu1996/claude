@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% from "_macros.html" import product_image, product_card, stock_badge %}
+{% block title %}{{ p.name }} · {{ site.name }}{% endblock %}
+{% block description %}{{ (p.description or p.name)[:155] }}{% endblock %}
+{% block content %}
+<nav class="crumbs small">
+  <a href="{{ url_for('store.catalog') }}">Shop</a>
+  {% if p.category_slug %} › <a href="{{ url_for('store.catalog', slug=p.category_slug) }}">{{ p.category_name }}</a>{% endif %}
+</nav>
+
+<div class="product-layout">
+  <div class="product-media">{{ product_image(p, "large") }}</div>
+
+  <div class="product-info">
+    <h1>{{ p.name }}</h1>
+    <p class="muted small">SKU {{ p.sku }}{% if p.unit_note %} · {{ p.unit_note }}{% endif %}</p>
+
+    <div class="price-block">
+      <span class="price big">{{ p.price_cents|money }}</span>
+      <span class="muted">per {{ p.unit }}</span>
+      {% if p.compare_at_cents and p.compare_at_cents > p.price_cents %}
+        <div class="small"><s class="muted">Typical retail {{ p.compare_at_cents|money }}</s>
+          <span class="save">Save {{ ((1 - p.price_cents / p.compare_at_cents) * 100)|round|int }}%</span></div>
+      {% endif %}
+    </div>
+
+    {% if tiers %}
+    <table class="tiers">
+      <thead><tr><th>Quantity</th><th>Price per {{ p.unit }}</th></tr></thead>
+      <tbody>
+        <tr><td>{{ p.moq }}–{{ tiers[0][0] - 1 }}</td><td>{{ p.price_cents|money }}</td></tr>
+        {% for qty, price in tiers %}
+          <tr><td>{{ qty }}{% if loop.last %}+{% else %}–{{ tiers[loop.index][0] - 1 }}{% endif %}</td><td><strong>{{ price|money }}</strong></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    <div class="stock-line">{{ stock_badge(p) }}
+      {% if p.stock_qty > 0 %}<span class="muted small">{{ "{:,}".format(p.stock_qty) }} {{ p.unit|plural(p.stock_qty) }} available{% if p.warehouse %} · ships from {{ p.warehouse }}{% endif %}</span>{% endif %}
+    </div>
+
+    {% if p.stock_qty > 0 %}
+    <form class="buy-box" method="post" action="{{ url_for('store.cart_add') }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="product_id" value="{{ p.id }}">
+      <label>Qty <input type="number" name="qty" value="{{ p.moq }}" min="{{ p.moq }}" max="{{ p.stock_qty }}" step="1"></label>
+      <button class="btn btn-primary" type="submit">Add to cart</button>
+    </form>
+    {% if p.moq > 1 %}<p class="small muted">Minimum order: {{ p.moq }} {{ p.unit|plural(p.moq) }}</p>{% endif %}
+    {% endif %}
+    <p class="small"><a href="{{ url_for('store.quote', sku=p.sku) }}">Need more than we list, or delivery outside our area? Request a quote →</a></p>
+
+    {% if p.description %}<div class="desc"><p>{{ p.description }}</p></div>{% endif %}
+
+    {% if specs %}
+    <h2 class="h3">Specifications</h2>
+    <table class="specs">
+      {% for key, value in specs %}<tr><th>{{ key }}</th><td>{{ value }}</td></tr>{% endfor %}
+    </table>
+    {% endif %}
+  </div>
+</div>
+
+{% if related %}
+<section>
+  <div class="section-head"><h2>More in {{ p.category_name }}</h2></div>
+  <div class="product-grid">{% for r in related %}{{ product_card(r) }}{% endfor %}</div>
+</section>
+{% endif %}
+{% endblock %}

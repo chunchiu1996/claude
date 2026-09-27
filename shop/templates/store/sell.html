@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, textarea %}
+{% block title %}Sell your US inventory with us · 供应商合作 · {{ site.name }}{% endblock %}
+{% block content %}
+<div class="two-col">
+  <div>
+    <h1>Manufacturers: sell your US-warehoused stock<br><span class="muted">工厂合作：销售您在美国的库存</span></h1>
+    <p class="lead">Have flooring, tile, cabinets, fixtures or hardware sitting in a US warehouse? We list it, sell it to homeowners, contractors and retailers, and pay you on every sale.</p>
+    <p class="muted">您在美国仓库有积压或出口库存吗？我们负责上架、销售给美国的业主、承包商和零售商，每笔销售都会结算给您。</p>
+    <ol class="steps">
+      <li><strong>Send your product list</strong> — any spreadsheet is fine. 发送产品清单（Excel即可）。</li>
+      <li><strong>We receive the stock</strong> into our warehouse and publish it online. 我们收货入仓并上架。</li>
+      <li><strong>Track every sale</strong> on your private dashboard: stock, units sold, payouts. 专属页面实时查看库存、销量和结算。</li>
+      <li><strong>Get paid</strong> by wire on a regular schedule, minus our agreed commission. 定期电汇结算（扣除约定佣金）。</li>
+    </ol>
+  </div>
+  <form method="post" class="form-card" novalidate>
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <div class="grid-2">
+      {{ field("company", "Company / 公司名称", data, errors, required=true) }}
+      {{ field("name", "Contact name / 联系人", data, errors, required=true) }}
+      {{ field("email", "Email / 邮箱", data, errors, type="email", required=true) }}
+      {{ field("phone", "WeChat / WhatsApp / Phone / 微信", data, errors) }}
+    </div>
+    {{ field("location", "Where is the stock now? / 库存所在地", data, errors, placeholder="e.g. Ontario CA warehouse, arriving LA port in June") }}
+    {{ textarea("items", "Products & quantities / 产品和数量", data, errors, rows=5, required=true, placeholder="e.g. SPC flooring 7mm, 3 containers (~9,000 boxes)") }}
+    {{ textarea("message", "Anything else / 其他说明", data, errors, rows=3) }}
+    <button class="btn btn-primary btn-block" type="submit">Submit / 提交</button>
+  </form>
+</div>
+{% endblock %}

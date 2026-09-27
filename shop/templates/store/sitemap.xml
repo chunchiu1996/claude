@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>{{ url_for('store.home', _external=True) }}</loc></url>
+  <url><loc>{{ url_for('store.catalog', _external=True) }}</loc></url>
+  <url><loc>{{ url_for('store.quote', _external=True) }}</loc></url>
+  {% for c in categories %}<url><loc>{{ url_for('store.catalog', slug=c.slug, _external=True) }}</loc></url>
+  {% endfor %}{% for p in products %}<url><loc>{{ url_for('store.product', slug=p.slug, _external=True) }}</loc><lastmod>{{ p.updated_at[:10] }}</lastmod></url>
+  {% endfor %}
+</urlset>
