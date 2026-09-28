@@ -30,7 +30,7 @@ def create_app(test_config=None):
         DATABASE=env("DATABASE", os.path.join(app.instance_path, "shop.db")),
         UPLOAD_FOLDER=env("UPLOAD_FOLDER", os.path.join(app.instance_path, "uploads")),
         MAX_CONTENT_LENGTH=10 * 1024 * 1024,
-        SITE_NAME=env("SITE_NAME", "Liqueator USA"),
+        SITE_NAME=env("SITE_NAME", "Liquidator USA"),
         SITE_TAGLINE=env(
             "SITE_TAGLINE", "Factory-direct flooring, tile, cabinets & fixtures — in stock at our US warehouse."
         ),

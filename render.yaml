@@ -1,7 +1,7 @@
 # One-click deploy on Render (https://render.com): New > Blueprint > pick this repo.
 services:
   - type: web
-    name: liqueatorusa
+    name: liquidatorusa
     runtime: docker
     plan: starter            # ~$7/mo; a persistent disk requires a paid plan
     healthCheckPath: /
@@ -15,7 +15,7 @@ services:
       - key: ADMIN_PASSWORD
         sync: false          # you'll be prompted for it
       - key: SITE_NAME
-        value: Liqueator USA
+        value: Liquidator USA
       - key: CONTACT_EMAIL
         sync: false
       - key: CONTACT_PHONE

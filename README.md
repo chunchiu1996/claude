@@ -1,4 +1,4 @@
-# Liqueator USA — factory-direct home improvement store (liqueatorusa.com)
+# Liquidator USA — factory-direct home improvement store (liquidatorusa.com)
 
 An online store and back office for selling **home improvement products that Chinese factories have
 already shipped to a US warehouse** (flooring, tile, cabinets, vanities, faucets, lighting, hardware).
@@ -74,7 +74,7 @@ database: delete `instance/shop.db`, or skip `seed-demo`.
 |---|---|---|
 | `ADMIN_PASSWORD` | *(unset: admin disabled)* | Staff login password |
 | `SECRET_KEY` | auto-generated file | Session signing key. **Set this in production** |
-| `SITE_NAME` | Liqueator USA | Your store name |
+| `SITE_NAME` | Liquidator USA | Your store name |
 | `SITE_TAGLINE` | … | Meta description / footer text |
 | `CONTACT_EMAIL`, `CONTACT_PHONE` | sales@example.com | Shown in header, footer and order pages |
 | `WAREHOUSE_ADDRESS` | Ontario, CA 91761 | Pickup location |
@@ -96,7 +96,7 @@ The app is one small Python process with a SQLite file, and it has no paid depen
 
 - **Cloudflare + a small server (recommended)**: follow [`deploy/CLOUDFLARE.md`](deploy/CLOUDFLARE.md).
   `docker compose up -d` runs the shop, a Cloudflare Tunnel (HTTPS, no open ports) and a daily backup.
-  The store is served at `liqueatorusa.com` and the Chinese seller site at `partner.liqueatorusa.com`.
+  The store is served at `liquidatorusa.com` and the Chinese seller site at `partner.liquidatorusa.com`.
   Settings go in `.env` (copy `.env.example`).
 - **Render**: *New → Blueprint* uses `render.yaml`. It creates the web service and a 1 GB persistent disk,
   and you point the domain at it from Cloudflare DNS.
