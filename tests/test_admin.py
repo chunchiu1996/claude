@@ -160,3 +160,24 @@ def test_categories_admin(admin, db):
     admin.post("/admin/categories", data={"name": "Outdoor", "description": "Decking", "sort_order": "5"})
     row = db.execute("SELECT * FROM categories WHERE name = 'Outdoor'").fetchone()
     assert row["slug"] == "outdoor" and row["sort_order"] == 5
+
+
+def test_backup_command_snapshots_database(app, tmp_path):
+    import sqlite3
+
+    runner = app.test_cli_runner()
+    result = runner.invoke(args=["backup-db", "--keep", "1"])
+    assert result.exit_code == 0, result.output
+    runner.invoke(args=["backup-db", "--keep", "1"])
+    backups = list((tmp_path / "backups").glob("shop-*.db"))
+    assert len(backups) == 1
+    assert sqlite3.connect(backups[0]).execute("SELECT COUNT(*) FROM products").fetchone()[0] > 0
+
+
+def test_generated_secret_key_lives_next_to_database(tmp_path):
+    from shop import create_app
+
+    first = create_app({"TESTING": True, "DATABASE": str(tmp_path / "db" / "shop.db"), "UPLOAD_FOLDER": str(tmp_path / "u")})
+    second = create_app({"TESTING": True, "DATABASE": str(tmp_path / "db" / "shop.db"), "UPLOAD_FOLDER": str(tmp_path / "u")})
+    assert (tmp_path / "db" / "secret_key").exists()
+    assert first.config["SECRET_KEY"] == second.config["SECRET_KEY"]

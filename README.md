@@ -1,4 +1,4 @@
-# HomeSource Direct — factory-direct home improvement shop
+# Liqueator USA — factory-direct home improvement store (liqueatorusa.com)
 
 An online store and back office for selling **home improvement products that Chinese factories have
 already shipped to a US warehouse** (flooring, tile, cabinets, vanities, faucets, lighting, hardware).
@@ -74,7 +74,7 @@ database: delete `instance/shop.db`, or skip `seed-demo`.
 |---|---|---|
 | `ADMIN_PASSWORD` | *(unset: admin disabled)* | Staff login password |
 | `SECRET_KEY` | auto-generated file | Session signing key. **Set this in production** |
-| `SITE_NAME` | HomeSource Direct | Your store name |
+| `SITE_NAME` | Liqueator USA | Your store name |
 | `SITE_TAGLINE` | … | Meta description / footer text |
 | `CONTACT_EMAIL`, `CONTACT_PHONE` | sales@example.com | Shown in header, footer and order pages |
 | `WAREHOUSE_ADDRESS` | Ontario, CA 91761 | Pickup location |
@@ -90,14 +90,19 @@ database: delete `instance/shop.db`, or skip `seed-demo`.
 | `DATABASE`, `UPLOAD_FOLDER` | `instance/…` | Where the SQLite DB and uploaded images live |
 | `TRUST_PROXY`, `SESSION_COOKIE_SECURE` | 0 | Set `1` behind an HTTPS host. The Dockerfile already does this |
 
-## Deploy (about $7/month)
+## Deploy (about $5–7/month)
 
 The app is one small Python process with a SQLite file, and it has no paid dependencies.
 
-- **Render**: push this repo, then *New → Blueprint* to use `render.yaml`. That creates the web service and a 1 GB persistent disk, and asks for your admin password.
-- **Anywhere with Docker** (Railway, Fly.io, a $5 VPS): `docker build -t shop . && docker run -p 8000:8000 -v shopdata:/data -e ADMIN_PASSWORD=… -e SECRET_KEY=… shop`
+- **Cloudflare + a small server (recommended)**: follow [`deploy/CLOUDFLARE.md`](deploy/CLOUDFLARE.md).
+  `docker compose up -d` runs the shop, a Cloudflare Tunnel (HTTPS, no open ports) and a daily backup.
+  The store is served at `liqueatorusa.com` and the Chinese seller site at `partner.liqueatorusa.com`.
+  Settings go in `.env` (copy `.env.example`).
+- **Render**: *New → Blueprint* uses `render.yaml`. It creates the web service and a 1 GB persistent disk,
+  and you point the domain at it from Cloudflare DNS.
 
-Back up `/data/shop.db` (plus `/data/uploads`) regularly. That file holds everything.
+Everything lives in the data folder (`/data` in Docker): `shop.db`, product photos in `uploads/`, and
+snapshots from `flask --app wsgi backup-db` in `backups/`. Copy it off the server regularly.
 
 ## Going live with your real products
 

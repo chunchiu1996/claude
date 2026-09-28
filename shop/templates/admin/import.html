@@ -38,6 +38,12 @@
 {% if result %}
   {% if result.ok %}
     <div class="flash flash-success">Imported: {{ result.created }} new, {{ result.updated }} updated{% if result.units_received %}, {{ "{:,}".format(result.units_received) }} units received{% endif %}.</div>
+    {% if result.warnings %}
+    <div class="flash flash-message">Imported, but please check these rows:</div>
+    <table class="data"><thead><tr><th>Row</th><th>Note</th></tr></thead>
+      {% for row, msg in result.warnings %}<tr><td>{{ row }}</td><td>{{ msg }}</td></tr>{% endfor %}
+    </table>
+    {% endif %}
   {% else %}
     <div class="flash flash-error">Nothing was imported — please fix these rows and upload again:</div>
     <table class="data"><thead><tr><th>Row</th><th>Problem</th></tr></thead>

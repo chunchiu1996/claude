@@ -2,7 +2,7 @@
   {% if p.image_url %}
     <img class="pimg {{ cls }}" src="{{ p.image_url }}" alt="{{ p.name }}" loading="lazy">
   {% else %}
-    <div class="pimg ph {{ cls }}" style="--hue: {{ ((p.category_id or 3) * 53) % 360 }}" aria-hidden="true">
+    <div class="pimg ph {{ cls }}" style="--hue: {{ 12 + ((p.category_id or 3) * 11) % 38 }}" aria-hidden="true">
       <span>{{ p.category_name or "Product" }}</span>
     </div>
   {% endif %}

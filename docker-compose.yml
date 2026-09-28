@@ -1,0 +1,32 @@
+# Runs the shop on any server with Docker, published through a Cloudflare Tunnel
+# (no open ports, HTTPS handled by Cloudflare). See deploy/CLOUDFLARE.md.
+#
+#   cp .env.example .env      # then fill it in
+#   docker compose up -d --build
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - shopdata:/data            # database, uploaded photos, backups
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - app
+
+  backup:                          # daily database snapshot into /data/backups (keeps 14)
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - shopdata:/data
+    command: sh -c "while true; do flask --app wsgi backup-db; sleep 86400; done"
+
+volumes:
+  shopdata:

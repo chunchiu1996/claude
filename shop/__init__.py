@@ -8,9 +8,9 @@ from . import db
 from .pricing import fmt_money, parse_money, pluralize
 
 
-def _load_or_create_secret(instance_path):
-    """Keep sessions valid across restarts/workers when SECRET_KEY isn't set (set it in production)."""
-    path = Path(instance_path) / "secret_key"
+def _load_or_create_secret(data_dir):
+    """Keep sessions valid across restarts/workers when SECRET_KEY isn't set: stored beside the database."""
+    path = Path(data_dir) / "secret_key"
     try:
         fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     except FileExistsError:
@@ -30,7 +30,7 @@ def create_app(test_config=None):
         DATABASE=env("DATABASE", os.path.join(app.instance_path, "shop.db")),
         UPLOAD_FOLDER=env("UPLOAD_FOLDER", os.path.join(app.instance_path, "uploads")),
         MAX_CONTENT_LENGTH=10 * 1024 * 1024,
-        SITE_NAME=env("SITE_NAME", "HomeSource Direct"),
+        SITE_NAME=env("SITE_NAME", "Liqueator USA"),
         SITE_TAGLINE=env(
             "SITE_TAGLINE", "Factory-direct flooring, tile, cabinets & fixtures — in stock at our US warehouse."
         ),
@@ -62,7 +62,9 @@ def create_app(test_config=None):
     if test_config:
         app.config.update(test_config)
     if not app.config["SECRET_KEY"]:
-        app.config["SECRET_KEY"] = _load_or_create_secret(app.instance_path)
+        data_dir = Path(app.config["DATABASE"]).parent
+        data_dir.mkdir(parents=True, exist_ok=True)
+        app.config["SECRET_KEY"] = _load_or_create_secret(data_dir)
     Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
 
     if app.config["SELLER_SITE_DOMAIN"]:

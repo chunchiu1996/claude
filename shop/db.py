@@ -1,7 +1,10 @@
 import sqlite3
+from datetime import datetime, timezone
+from pathlib import Path
 
 import click
 from flask import current_app, g
+from flask.cli import with_appcontext
 
 
 def get_db():
@@ -40,6 +43,7 @@ def init_db():
 
 
 @click.command("seed-demo")
+@with_appcontext
 def seed_demo_command():
     """Load demo suppliers, categories, products and orders."""
     from .seed import seed_demo
@@ -50,6 +54,24 @@ def seed_demo_command():
     click.echo("Demo catalog loaded.")
 
 
+@click.command("backup-db")
+@click.option("--keep", default=14, show_default=True, help="How many daily snapshots to keep.")
+@with_appcontext
+def backup_db_command(keep):
+    """Write a consistent snapshot of the database to <data dir>/backups/ and delete the oldest ones."""
+    folder = Path(current_app.config["DATABASE"]).parent / "backups"
+    folder.mkdir(parents=True, exist_ok=True)
+    target = folder / f"shop-{datetime.now(timezone.utc):%Y%m%d-%H%M%S}.db"
+    snapshot = sqlite3.connect(target)
+    with snapshot:
+        get_db().backup(snapshot)  # safe while the shop is running
+    snapshot.close()
+    for old in sorted(folder.glob("shop-*.db"))[:-keep]:
+        old.unlink()
+    click.echo(f"Backed up to {target}")
+
+
 def init_app(app):
     app.teardown_appcontext(close_db)
     app.cli.add_command(seed_demo_command)
+    app.cli.add_command(backup_db_command)

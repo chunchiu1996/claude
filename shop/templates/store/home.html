@@ -30,7 +30,7 @@
   <div class="section-head"><h2>Shop by category</h2></div>
   <div class="cat-grid">
     {% for c in categories if c.product_count %}
-      <a class="cat-tile" href="{{ url_for('store.catalog', slug=c.slug) }}" style="--hue: {{ (c.id * 53) % 360 }}">
+      <a class="cat-tile" href="{{ url_for('store.catalog', slug=c.slug) }}" style="--hue: {{ 12 + (c.id * 11) % 38 }}">
         <strong>{{ c.name }}</strong>
         <span>{{ c.description or "" }}</span>
         <em>{{ c.product_count }} product{{ "s" if c.product_count != 1 }}</em>

@@ -4,6 +4,7 @@ The import is all-or-nothing: if any row has an error nothing is saved, so re-up
 corrected file never double-counts received stock.
 """
 import csv
+import datetime
 import io
 import re
 
@@ -97,6 +98,29 @@ _EXTRA_ALIASES = {
 }
 TRUE_VALUES = {"1", "y", "yes", "true", "x", "是", "✓"}
 
+# Factories often write categories in Chinese; the English store needs English category names.
+CHINESE_CATEGORIES = {
+    "地板": "Flooring", "木地板": "Flooring", "石塑地板": "Flooring", "spc地板": "Flooring", "强化地板": "Flooring",
+    "复合地板": "Flooring", "瓷砖": "Tile", "地砖": "Tile", "墙砖": "Tile", "石材": "Tile", "马赛克": "Tile",
+    "橱柜": "Kitchen Cabinets", "浴室柜": "Bathroom Vanities", "水龙头": "Faucets & Fixtures",
+    "龙头": "Faucets & Fixtures", "卫浴": "Faucets & Fixtures", "花洒": "Faucets & Fixtures", "灯具": "Lighting",
+    "照明": "Lighting", "灯": "Lighting", "门": "Doors & Hardware", "五金": "Doors & Hardware",
+    "门锁": "Doors & Hardware", "台面": "Countertops", "石英石": "Countertops", "岩板": "Countertops",
+}
+_CJK = re.compile(r"[\u3400-\u9fff]")
+
+
+def english_category(value):
+    """'瓷砖 / 石材' -> 'Tile'; 'Flooring 地板' -> 'Flooring'; English names are kept as they are."""
+    english = _CJK.sub("", value).strip(" /、,，()（）")
+    if english and english != value.strip():
+        return english
+    for part in re.split(r"[/、,，\s]+", value.lower()):
+        part = part.strip("()（）")
+        if part in CHINESE_CATEGORIES:
+            return CHINESE_CATEGORIES[part]
+    return value
+
 
 def _squash(text):
     return re.sub(r"[\s_\-()（）/:：.*#]+", "", str(text or "").lower())
@@ -124,7 +148,8 @@ class ImportResult:
         self.created = 0
         self.updated = 0
         self.units_received = 0
-        self.errors = []  # (spreadsheet row number, message)
+        self.errors = []  # (spreadsheet row number, message) — any error means nothing is imported
+        self.warnings = []  # (row number, message) — imported, but worth a look
 
     @property
     def ok(self):
@@ -146,6 +171,13 @@ def _cell(value):
         return ""
     if isinstance(value, bool):
         return "yes" if value else "no"
+    if isinstance(value, (datetime.time, datetime.timedelta)):
+        # Excel turns a volume price typed as "50:2.49" into the time 00:50:02.49 — turn it back.
+        if isinstance(value, datetime.time):
+            minutes, seconds = value.hour * 60 + value.minute, value.second + value.microsecond / 1e6
+        else:
+            minutes, seconds = divmod(value.total_seconds(), 60)
+        return f"{int(minutes)}:{seconds:.2f}"
     if isinstance(value, float) and value.is_integer():
         return str(int(value))
     return str(value).strip()
@@ -200,7 +232,7 @@ def import_rows(db, rows, reference=None, stock_mode="add"):
             if not any(row.values()):
                 continue
             try:
-                _import_row(db, row, reference, stock_mode, result, seen)
+                _import_row(db, row, reference, stock_mode, result, seen, rownum)
             except ValueError as exc:
                 result.errors.append((rownum, str(exc)))
         if result.errors:
@@ -220,10 +252,12 @@ def _int(value, field):
         raise ValueError(f"{field} must be a whole number, got {value!r}") from None
 
 
-def _import_row(db, row, reference, stock_mode, result, seen):
+def _import_row(db, row, reference, stock_mode, result, seen, rownum):
     sku = row.get("sku", "")
     if not sku:
         raise ValueError("SKU is required")
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}( 00:00:00)?", sku):
+        raise ValueError(f"SKU {sku} looks like a date: Excel converted it. Format the SKU column as Text and retype it")
     if sku.lower() in seen:
         raise ValueError(f"SKU {sku} appears more than once in this file")
     seen.add(sku.lower())
@@ -232,6 +266,9 @@ def _import_row(db, row, reference, stock_mode, result, seen):
     fields = {}
     if row.get("name"):
         fields["name"] = row["name"]
+        if _CJK.search(row["name"]):
+            result.warnings.append((rownum, f"{sku}: the product name is in Chinese. The English store will show it "
+                                            "as written, so add an English name when you can"))
     if row.get("price"):
         fields["price_cents"] = parse_money(row["price"])
     if row.get("compare_at_price"):
@@ -249,7 +286,11 @@ def _import_row(db, row, reference, stock_mode, result, seen):
         if row.get(flag):
             fields[flag] = 1 if row[flag].lower() in TRUE_VALUES else 0
     if row.get("category"):
-        fields["category_id"] = get_or_create_category(db, row["category"])
+        category = english_category(row["category"])
+        if _CJK.search(category):
+            result.warnings.append((rownum, f"{sku}: category “{category}” is in Chinese. Rename it under "
+                                            "Admin → Categories, or use an English category name"))
+        fields["category_id"] = get_or_create_category(db, category)
     if row.get("supplier"):
         fields["supplier_id"] = get_or_create_supplier(db, row["supplier"])
     tiers = parse_tiers(row["tiers"]) if row.get("tiers") else None
@@ -320,7 +361,7 @@ def template_xlsx():
     from openpyxl.utils import get_column_letter
     from openpyxl.worksheet.datavalidation import DataValidation
 
-    green, orange = PatternFill("solid", fgColor="0F5C4C"), PatternFill("solid", fgColor="C9761B")
+    brown, orange = PatternFill("solid", fgColor="6B3A22"), PatternFill("solid", fgColor="D9681E")
     white_bold, bold = Font(bold=True, color="FFFFFF"), Font(bold=True)
     wrap_top = Alignment(wrap_text=True, vertical="top")
     thin = Border(bottom=Side(style="thin", color="DDDDDD"))
@@ -330,7 +371,7 @@ def template_xlsx():
         for col, (key, en, zh, required, help_en, help_zh, example) in enumerate(COLUMN_SPECS, start=1):
             cell = ws.cell(row=1, column=col, value=f"{en} {zh}")
             cell.font = white_bold
-            cell.fill = orange if required in (REQUIRED, NEW_ONLY) else green
+            cell.fill = orange if required in (REQUIRED, NEW_ONLY) else brown
             cell.alignment = Alignment(wrap_text=True, vertical="center")
             cell.comment = Comment(f"{help_en}\n{help_zh}\nExample 示例: {example}", "Template", width=320, height=140)
             width = {"name": 42, "description": 44, "specs": 44, "tiers": 22, "unit_note": 22, "supplier": 28}
@@ -343,8 +384,9 @@ def template_xlsx():
     products.title = "Products 产品"
     header_row(products)
     col = {key: get_column_letter(i) for i, key in enumerate(COLUMNS, start=1)}
-    for r in range(2, 502):  # keep SKUs like 00123 as text instead of numbers
-        products[f"{col['sku']}{r}"].number_format = "@"
+    # Text columns: stop Excel turning SKU 00123 into 123, "3-15" into a date, "50:2.49" into a time.
+    for key in ("sku", "unit_note", "tiers"):
+        products.column_dimensions[col[key]].number_format = "@"
 
     def validation(dv, *keys):
         products.add_data_validation(dv)
@@ -372,8 +414,8 @@ def template_xlsx():
         ("How to fill in this template", "填写说明"),
         ("1. Put one product per row on the “Products 产品” sheet. Don't change the header row.",
          "1. 在“Products 产品”表中每行填写一个产品，请勿修改第一行表头。"),
-        ("2. Orange columns are required for new products. Green columns are optional.",
-         "2. 橙色列为新产品必填，绿色列为选填。"),
+        ("2. Orange columns are required for new products. Brown columns are optional.",
+         "2. 橙色列为新产品必填，棕色列为选填。"),
         ("3. Prices are in US dollars, numbers only (no $ sign).", "3. 价格为美元，只填数字（不要 $ 符号）。"),
         ("4. Quantity = units arriving in this shipment. Tell us the container number when you send the file.",
          "4. 数量 = 本批到货数量。发送文件时请注明柜号。"),
@@ -389,13 +431,13 @@ def template_xlsx():
     start = len(notes) + 2
     for c, title in enumerate(["Column 列名", "Required 是否必填", "Description", "说明", "Example 示例"], start=1):
         cell = guide.cell(row=start, column=c, value=title)
-        cell.font, cell.fill = white_bold, green
+        cell.font, cell.fill = white_bold, brown
     for r, (key, en, zh, required, help_en, help_zh, example) in enumerate(COLUMN_SPECS, start=start + 1):
         for c, value in enumerate([f"{en} {zh}", required, help_en, help_zh, example], start=1):
             cell = guide.cell(row=r, column=c, value=value)
             cell.alignment, cell.border = wrap_top, thin
         if required in (REQUIRED, NEW_ONLY):
-            guide.cell(row=r, column=2).font = Font(bold=True, color="C9761B")
+            guide.cell(row=r, column=2).font = Font(bold=True, color="D9681E")
 
     examples = wb.create_sheet("Example 示例")
     header_row(examples)
