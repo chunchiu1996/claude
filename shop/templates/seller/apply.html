@@ -1,0 +1,66 @@
+{% extends "seller/_layout.html" %}
+{% block title %}申请合作 · {{ seller.name }}{% endblock %}
+{% macro input(name, label, required=false, type="text", placeholder="") -%}
+  <label class="s-field{% if errors.get(name) %} s-error{% endif %}">
+    <span>{{ label }}{% if required %} <i>*</i>{% endif %}</span>
+    <input type="{{ type }}" name="{{ name }}" value="{{ data.get(name, '') }}" placeholder="{{ placeholder }}">
+    {% if errors.get(name) %}<em>{{ errors[name] }}</em>{% endif %}
+  </label>
+{%- endmacro %}
+{% block content %}
+<section class="s-section">
+  <div class="s-wrap s-apply">
+    <div class="s-apply-intro">
+      <h1>申请合作</h1>
+      <p>请填写以下信息，我们会在两个工作日内通过微信或邮件与您联系。</p>
+      <ul class="s-checks">
+        <li>提交后不产生任何费用或义务</li>
+        <li>可以先<a href="{{ url_for('seller.product_template') }}">下载产品表模板</a>，提前准备产品信息</li>
+        {% if seller.wechat %}<li>着急的话，直接加微信：<b>{{ seller.wechat }}</b></li>{% endif %}
+      </ul>
+    </div>
+    <form method="post" class="s-form" novalidate>
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <div class="s-grid-2">
+        {{ input("company", "公司名称", required=true) }}
+        {{ input("name", "联系人", required=true) }}
+        {{ input("phone", "微信 / WhatsApp / 电话") }}
+        {{ input("email", "邮箱", type="email") }}
+      </div>
+      <fieldset class="s-field">
+        <span>希望我们怎么联系您？</span>
+        <div class="s-chips">
+          {% for key, label in contact_prefs.items() %}
+          <label class="s-chip"><input type="radio" name="contact_pref" value="{{ key }}" {% if data.get('contact_pref') == key %}checked{% endif %}> {{ label }}</label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <div class="s-grid-2">
+        <label class="s-field"><span>货物目前在哪里？</span>
+          <select name="stock_status">
+            {% for s in stock_status %}<option {% if data.get('stock_status') == s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+          </select>
+        </label>
+        {{ input("location", "所在城市 / 仓库", placeholder="例如：加州 Ontario 仓库、6 月到洛杉矶港") }}
+      </div>
+      <fieldset class="s-field">
+        <span>产品品类（可多选）</span>
+        <div class="s-chips">
+          {% for c in categories %}
+          <label class="s-chip"><input type="checkbox" name="categories" value="{{ c }}" {% if c in data.get('categories', []) %}checked{% endif %}> {{ c }}</label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <label class="s-field{% if errors.get('items') %} s-error{% endif %}">
+        <span>产品和大概数量 <i>*</i></span>
+        <textarea name="items" rows="4" placeholder="例如：SPC 石塑地板 7mm，3 个货柜（约 9,000 箱）；岩板 2 个货柜">{{ data.get('items', '') }}</textarea>
+        {% if errors.get('items') %}<em>{{ errors['items'] }}</em>{% endif %}
+      </label>
+      <label class="s-field"><span>补充说明</span>
+        <textarea name="message" rows="3" placeholder="期望价格、结算方式或其他问题">{{ data.get('message', '') }}</textarea>
+      </label>
+      <button class="s-btn s-btn-accent s-btn-lg s-btn-block" type="submit">提交申请</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

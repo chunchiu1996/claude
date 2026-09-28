@@ -1,0 +1,138 @@
+{% extends "seller/_layout.html" %}
+{% block content %}
+<section class="s-hero">
+  <div class="s-wrap s-hero-grid">
+    <div>
+      <p class="s-eyebrow">面向中国工厂和货主 · 美国本地销售</p>
+      <h1>您在美国仓库的建材库存，<br>交给我们来卖</h1>
+      <p class="s-lead">我们在 {{ seller.warehouse }} 设有仓库，长期向美国承包商、装修公司、建材门店和业主销售地板、瓷砖、橱柜、卫浴、灯具和五金。已经在美国的库存，或即将到港的货柜，都可以交给我们寄售，卖出后按月结算。</p>
+      <div class="s-actions">
+        <a class="s-btn s-btn-accent s-btn-lg" href="{{ url_for('seller.apply') }}">申请合作</a>
+        <a class="s-btn s-btn-ghost s-btn-lg" href="{{ url_for('seller.product_template') }}">下载产品表模板</a>
+      </div>
+    </div>
+    <div class="s-hero-card">
+      <div class="s-hero-card-title">合作一览</div>
+      <ul>
+        <li><b>寄售模式</b><span>货物卖出后结算货款</span></li>
+        <li><b>美国本地销售</b><span>网上商城 + 承包商和门店客户</span></li>
+        <li><b>专属后台</b><span>库存、销售、结算随时可查</span></li>
+        <li><b>按月结算</b><span>美元电汇，扣除约定佣金</span></li>
+      </ul>
+      {% if seller.wechat %}<div class="s-hero-card-foot">微信咨询：<b>{{ seller.wechat }}</b></div>{% endif %}
+    </div>
+  </div>
+</section>
+
+<section class="s-section">
+  <div class="s-wrap">
+    <h2 class="s-title">这些情况，您是否也遇到过？</h2>
+    <div class="s-grid-4">
+      <div class="s-pain">货柜到了美国，却一直压在仓库里，每月仓储费不断增加</div>
+      <div class="s-pain">大件建材不适合亚马逊等电商平台，运费高、退货多</div>
+      <div class="s-pain">没有美国本地销售团队，很难直接接触承包商和建材门店</div>
+      <div class="s-pain">海外库存越积越多，占用资金，周转困难</div>
+    </div>
+  </div>
+</section>
+
+<section class="s-section s-alt" id="services">
+  <div class="s-wrap">
+    <h2 class="s-title">我们为您做什么</h2>
+    <div class="s-grid-3">
+      <div class="s-card"><div class="s-num">01</div><h3>收货入仓</h3><p>货柜到港后直接送到我们的美国仓库，清点入库，按柜号登记每一批货。</p></div>
+      <div class="s-card"><div class="s-num">02</div><h3>上架与推广</h3><p>拍照、撰写英文产品介绍、设置批量阶梯价，在我们的网上商城和客户渠道同步销售。</p></div>
+      <div class="s-card"><div class="s-num">03</div><h3>对接美国买家</h3><p>承包商、装修公司、建材门店和业主可以直接下单或询价，大单由我们的团队跟进报价。</p></div>
+      <div class="s-card"><div class="s-num">04</div><h3>提货与配送</h3><p>客户可到仓库自提，也可以本地送货上门，全部由我们安排。</p></div>
+      <div class="s-card"><div class="s-num">05</div><h3>透明结算</h3><p>每一笔销售都记录在您的专属后台，按月结算货款（扣除约定佣金）。</p></div>
+      <div class="s-card"><div class="s-num">06</div><h3>中文对接</h3><p>中文沟通，微信随时联系，产品表、报表都有中文版本。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="s-section" id="process">
+  <div class="s-wrap">
+    <h2 class="s-title">合作流程</h2>
+    <ol class="s-steps">
+      <li><b>提交合作申请</b><span>填写公司和库存信息，我们会在两个工作日内联系您。</span></li>
+      <li><b>发送产品表</b><span>用我们的 Excel 模板（中英文）填写货号、品名、数量和价格。</span></li>
+      <li><b>确定合作条件</b><span>商定底价、佣金比例和结算方式，签署寄售协议。</span></li>
+      <li><b>货物入仓上架</b><span>货物到仓后清点入库，尽快完成拍照和上架。</span></li>
+      <li><b>销售与结算</b><span>在专属后台随时查看库存和销售，按月收到货款。</span></li>
+    </ol>
+    <p class="s-center"><a class="s-btn s-btn-accent s-btn-lg" href="{{ url_for('seller.apply') }}">立即申请</a></p>
+  </div>
+</section>
+
+<section class="s-section s-alt">
+  <div class="s-wrap s-split">
+    <div>
+      <h2 class="s-title s-left">专属后台，库存销售一目了然</h2>
+      <ul class="s-checks">
+        <li>实时库存：已入库、已售、已预订、现有库存</li>
+        <li>每一笔订单的销售金额和您的收入</li>
+        <li>佣金和结算记录，待结算余额清清楚楚</li>
+        <li>手机、电脑都能打开，无需下载软件</li>
+      </ul>
+    </div>
+    <div class="s-dash" aria-label="后台示例">
+      <div class="s-dash-head">寄售报表 <span>示例</span></div>
+      <div class="s-dash-stats">
+        <div><span>销售总额</span><b>$48,260</b></div>
+        <div><span>您的收入</span><b>$38,608</b></div>
+        <div class="hl"><span>待结算余额</span><b>$6,412</b></div>
+      </div>
+      <table>
+        <tr><th>货号</th><th>已入库</th><th>已售</th><th>现有库存</th></tr>
+        <tr><td>SPC-7MM-OAK</td><td>2,400</td><td>1,860</td><td>540</td></tr>
+        <tr><td>TIL-2448-CAL</td><td>1,150</td><td>720</td><td>430</td></tr>
+        <tr><td>VAN-36-GRY</td><td>120</td><td>96</td><td>24</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="s-section">
+  <div class="s-wrap">
+    <h2 class="s-title">我们接收的品类</h2>
+    <div class="s-tags">{% for c in categories %}<span>{{ c }}</span>{% endfor %}</div>
+    <p class="s-center s-muted">以上品类之外的装修建材也欢迎咨询。</p>
+  </div>
+</section>
+
+<section class="s-section s-alt" id="terms">
+  <div class="s-wrap">
+    <h2 class="s-title">合作方式</h2>
+    <div class="s-grid-3">
+      <div class="s-term"><b>寄售模式</b><p>货物卖出后结算货款；售出前货物仍归您所有。</p></div>
+      <div class="s-term"><b>佣金</b><p>按品类和货量协商，签约前书面确认。</p></div>
+      <div class="s-term"><b>定价</b><p>双方商定底价，零售价和批量价参考美国市场行情。</p></div>
+      <div class="s-term"><b>结算</b><p>按月结算，美元电汇（周期可协商）。</p></div>
+      <div class="s-term"><b>仓储与物流</b><p>入仓、自提和本地配送由我们安排，具体费用签约前确认。</p></div>
+      <div class="s-term"><b>协议</b><p>签署书面寄售协议，明确价格、佣金、结算和退货安排。</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="s-section" id="faq">
+  <div class="s-wrap s-narrow">
+    <h2 class="s-title">常见问题</h2>
+    <details><summary>货物必须已经在美国吗？</summary><p>我们主要接收已在美国仓库的库存，也接收已发货、即将到港的货柜。还在国内的货物，可以先联系我们评估。</p></details>
+    <details><summary>最少需要多少货？</summary><p>没有硬性起订量，具体可以沟通。整柜或整托的货物更容易安排销售。</p></details>
+    <details><summary>价格由谁来定？</summary><p>双方先商定底价，我们根据美国市场行情设定零售价和批量价。价格调整会提前和您确认。</p></details>
+    <details><summary>怎么查看销售情况？</summary><p>签约后您会收到一个专属后台链接，手机和电脑都能打开，随时查看库存、销售和结算。</p></details>
+    <details><summary>需要准备什么资料？</summary><p>产品表（可以用我们的模板）、产品图片、规格参数，以及货物所在仓库和数量。</p></details>
+    <details><summary>多久结算一次？</summary><p>通常按月结算，通过美元电汇支付，结算明细在后台都能看到。</p></details>
+  </div>
+</section>
+
+<section class="s-cta">
+  <div class="s-wrap s-cta-row">
+    <div>
+      <h2>现在就让库存变成现金</h2>
+      <p>填写合作申请，我们会在两个工作日内联系您。{% if seller.wechat %}也可以直接加微信：{{ seller.wechat }}{% endif %}</p>
+    </div>
+    <a class="s-btn s-btn-accent s-btn-lg" href="{{ url_for('seller.apply') }}">申请合作</a>
+  </div>
+</section>
+{% endblock %}

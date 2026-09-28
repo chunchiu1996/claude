@@ -1,0 +1,59 @@
+{% extends "admin/_layout.html" %}
+{% block admin_title %}Campaigns{% endblock %}
+{% block admin_content %}
+<div class="section-head">
+  <h1>Seller campaigns (EDM)</h1>
+  <a class="btn" href="{{ seller_home }}" target="_blank">Open Chinese seller site ↗</a>
+</div>
+<p class="muted">Recruit Chinese factories and stock owners by email. Each campaign gets its own tracked link, so every application on the Chinese site is labelled with the campaign it came from.</p>
+
+<div class="two-col wide-left">
+  <section class="panel">
+    <h2 class="h3">1. Name the campaign</h2>
+    <form method="get" class="filters">
+      <input name="campaign" value="{{ campaign }}" aria-label="Campaign name" style="min-width: 260px">
+      <button class="btn btn-sm">Update links</button>
+    </form>
+    <h2 class="h3">2. Landing page link</h2>
+    <div class="copy-row"><input id="landing" readonly value="{{ landing }}"><button class="btn btn-sm" type="button" data-copy="landing">Copy</button></div>
+
+    <h2 class="h3">3. Email (Chinese)</h2>
+    <p class="small muted">Suggested subject lines:<br>
+      “您在美国仓库的建材库存，我们帮您卖”<br>
+      “美国仓库存积压？地板、瓷砖、橱柜寄售，按月结算”<br>
+      “海外仓建材库存变现：美国本地承包商和门店渠道”</p>
+    <p class="small">Paste this HTML into your email tool (Mailchimp, SendCloud, Brevo…) as a custom HTML email. The links already include this campaign's tracking.</p>
+    <div class="actions">
+      <button class="btn btn-primary btn-sm" type="button" data-copy="email-html">Copy email HTML</button>
+      <a class="btn btn-sm" download="{{ campaign }}.html" href="data:text/html;charset=utf-8,{{ email_html|urlencode }}">Download .html</a>
+    </div>
+    <textarea id="email-html" class="reply-box" rows="6" readonly>{{ email_html }}</textarea>
+    <iframe class="email-preview" title="Email preview" srcdoc="{{ email_html }}"></iframe>
+  </section>
+
+  <aside class="panel">
+    <h2 class="h3">Applications by source</h2>
+    <table class="data">
+      <thead><tr><th>Source</th><th class="num">Applied</th><th class="num">Signed</th></tr></thead>
+      {% for s in sources %}
+        <tr><td>{{ s.source }}</td><td class="num">{{ s.applications }}</td><td class="num">{{ s.signed or 0 }}</td></tr>
+      {% else %}<tr><td colspan="3" class="muted">No applications yet.</td></tr>{% endfor %}
+    </table>
+    <p class="small muted">“Signed” counts applications whose status is set to <em>won</em> under <a href="{{ url_for('admin.inquiries', kind='supplier') }}">Inquiries</a>.</p>
+    <h2 class="h3">Tips</h2>
+    <ul class="small">
+      <li>Send from a real company address, and set up SPF/DKIM in your email tool, so the mail isn't marked as spam.</li>
+      <li>Only email people who have agreed to receive it, or who are business contacts you have a reason to reach. Honour “退订” (unsubscribe) replies promptly.</li>
+      <li>Use a new campaign name for each send so you can compare results.</li>
+    </ul>
+  </aside>
+</div>
+<script>
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      navigator.clipboard.writeText(document.getElementById(btn.dataset.copy).value)
+        .then(function () { btn.textContent = "Copied ✓"; });
+    });
+  });
+</script>
+{% endblock %}

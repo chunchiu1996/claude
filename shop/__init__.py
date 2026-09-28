@@ -51,6 +51,10 @@ def create_app(test_config=None):
         SMTP_PASSWORD=env("SMTP_PASSWORD", ""),
         SMTP_FROM=env("SMTP_FROM", ""),
         SMTP_STARTTLS=env("SMTP_STARTTLS", "1") != "0",
+        # Chinese seller-recruitment site (/zh/), used as the landing page for email campaigns to
+        # Chinese factories and stock owners. Optionally served on its own domain.
+        SELLER_SITE_NAME=env("SELLER_SITE_NAME", ""),
+        SELLER_SITE_DOMAIN=env("SELLER_SITE_DOMAIN", ""),
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SECURE=env("SESSION_COOKIE_SECURE", "0") == "1",
@@ -61,6 +65,10 @@ def create_app(test_config=None):
         app.config["SECRET_KEY"] = _load_or_create_secret(app.instance_path)
     Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
 
+    if app.config["SELLER_SITE_DOMAIN"]:
+        from .seller import SellerDomainMiddleware
+
+        app.wsgi_app = SellerDomainMiddleware(app.wsgi_app, app.config["SELLER_SITE_DOMAIN"])
     if env("TRUST_PROXY") == "1":
         from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -73,11 +81,11 @@ def create_app(test_config=None):
     _install_csrf(app)
     _install_template_helpers(app)
 
-    from . import admin, storefront, supplier_portal
+    from . import admin, seller, storefront
 
-    app.register_blueprint(storefront.bp)
+    app.register_blueprint(storefront.bp)   # English store for US customers, at /
+    app.register_blueprint(seller.bp)       # Chinese site for factories / stock owners, at /zh/
     app.register_blueprint(admin.bp)
-    app.register_blueprint(supplier_portal.bp)
     return app
 
 

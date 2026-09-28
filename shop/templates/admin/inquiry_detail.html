@@ -40,7 +40,11 @@
 
     <div class="panel">
       <h2 class="h3">Reply</h2>
+      {% if inquiry.kind == 'quote' %}
       <p class="small muted">Fill in the blanks ($____), edit anything, then send it with one click. List prices (including volume pricing) are already filled in.</p>
+      {% else %}
+      <p class="small muted">A Chinese reply asking for their product list (with the template link). Edit it, then send it.</p>
+      {% endif %}
       <textarea id="reply" rows="14" class="reply-box">{{ draft }}</textarea>
       <div class="actions">
         {% if whatsapp_base %}<a class="btn btn-whatsapp" href="{{ whatsapp_base }}" target="_blank" rel="noopener" data-reply="whatsapp">Send on WhatsApp</a>{% endif %}
@@ -59,6 +63,7 @@
     <p class="small">Prefers: <strong>{{ contact_prefs.get(inquiry.contact_pref, "Email") }}</strong></p>
     {% if inquiry.role %}<p class="small muted">{{ inquiry.role }}</p>{% endif %}
     {% if inquiry.location %}<p class="small">📍 {{ inquiry.location }}</p>{% endif %}
+    {% if inquiry.source %}<p class="small">Source: <strong>{{ inquiry.source }}</strong></p>{% endif %}
     <p class="small muted">Received {{ inquiry.created_at }} UTC</p>
     {% if public_url %}<p class="small"><a href="{{ public_url }}" target="_blank">Customer's request page ↗</a></p>{% endif %}
   </aside>

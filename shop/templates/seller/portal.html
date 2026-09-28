@@ -1,0 +1,73 @@
+{% extends "seller/_layout.html" %}
+{% block title %}{{ supplier.name }} · 寄售报表{% endblock %}
+{% block head %}<meta name="robots" content="noindex">{% endblock %}
+{% block header %}
+<header class="s-header">
+  <div class="s-wrap s-header-row">
+    <span class="s-logo">{{ seller.name }}<small>合作伙伴后台</small></span>
+  </div>
+</header>
+{% endblock %}
+{% block content %}
+<section class="s-section s-portal">
+  <div class="s-wrap">
+    <h1>{{ supplier.name }}</h1>
+    <p class="s-muted">寄售报表 · 美国仓库：{{ seller.warehouse }} · 佣金比例 {{ supplier.commission_rate|pct }}</p>
+
+    <div class="s-stats">
+      <div><span>销售总额</span><b>{{ st.gross_cents|money }}</b></div>
+      <div><span>佣金</span><b>{{ st.commission_cents|money }}</b></div>
+      <div><span>您的收入</span><b>{{ st.net_cents|money }}</b></div>
+      <div><span>已结算</span><b>{{ st.paid_out_cents|money }}</b></div>
+      <div class="hl"><span>待结算余额</span><b>{{ st.balance_cents|money }}</b></div>
+    </div>
+
+    <div class="s-panel">
+      <h2>库存</h2>
+      <div class="s-table-wrap">
+      <table class="s-table">
+        <thead><tr><th>货号</th><th>产品</th><th class="num">已入库</th><th class="num">已售</th><th class="num">已预订</th><th class="num">现有库存</th><th class="num">售价</th></tr></thead>
+        {% for p in st.products %}
+          <tr class="{{ '' if p.active else 'inactive' }}"><td><code>{{ p.sku }}</code></td><td>{{ p.name }}</td>
+            <td class="num">{{ "{:,}".format(p.received) }}</td><td class="num">{{ "{:,}".format(p.sold) }}</td>
+            <td class="num">{{ "{:,}".format(p.reserved) }}</td><td class="num"><b>{{ "{:,}".format(p.stock_qty) }}</b></td>
+            <td class="num">{% if p.quote_only and not p.price_cents %}询价{% else %}{{ p.price_cents|money }}/{{ p.unit|unit_zh }}{% endif %}</td></tr>
+        {% else %}<tr><td colspan="7" class="s-muted">暂无产品</td></tr>{% endfor %}
+      </table>
+      </div>
+      <p class="s-muted s-small">库存按售价估值：{{ st.stock_value_cents|money }}</p>
+    </div>
+
+    <div class="s-grid-2 s-top">
+      <div class="s-panel">
+        <h2>销售记录</h2>
+        <div class="s-table-wrap">
+        <table class="s-table s-small">
+          <thead><tr><th>日期</th><th>订单号</th><th>货号</th><th class="num">数量</th><th class="num">销售额</th><th class="num">您的收入</th></tr></thead>
+          {% for s in st.sales %}
+            <tr><td>{{ s.sold_at[:10] }}</td><td>{{ s.number }}</td><td><code>{{ s.sku }}</code></td><td class="num">{{ s.qty }}</td><td class="num">{{ s.line_total_cents|money }}</td><td class="num">{{ s.net_cents|money }}</td></tr>
+          {% else %}<tr><td colspan="6" class="s-muted">暂无销售记录</td></tr>{% endfor %}
+        </table>
+        </div>
+      </div>
+      <div class="s-panel">
+        <h2>结算记录</h2>
+        <div class="s-table-wrap">
+        <table class="s-table s-small">
+          {% for p in st.payouts %}<tr><td>{{ p.created_at[:10] }}</td><td>{{ p.reference or "" }}{% if p.note %} <span class="s-muted">· {{ p.note }}</span>{% endif %}</td><td class="num">{{ p.amount_cents|money }}</td></tr>
+          {% else %}<tr><td class="s-muted">暂无结算记录</td></tr>{% endfor %}
+        </table>
+        </div>
+        <h2>库存变动</h2>
+        <div class="s-table-wrap">
+        <table class="s-table s-small">
+          {% for m in st.movements %}<tr><td>{{ m.created_at[:10] }}</td><td><code>{{ m.sku }}</code></td><td>{{ movement_zh.get(m.kind, m.kind) }}</td><td class="num {{ 'neg' if m.qty_change < 0 }}">{{ "%+d"|format(m.qty_change) }}</td><td class="s-muted">{{ m.reference or "" }}</td></tr>
+          {% else %}<tr><td class="s-muted">暂无记录</td></tr>{% endfor %}
+        </table>
+        </div>
+      </div>
+    </div>
+    <p class="s-muted s-small">如对报表有疑问，请联系{% if seller.wechat %}微信 {{ seller.wechat }} 或{% endif %}邮箱 {{ seller.email }}。</p>
+  </div>
+</section>
+{% endblock %}

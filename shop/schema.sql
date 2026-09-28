@@ -119,6 +119,7 @@ CREATE TABLE IF NOT EXISTS inquiries (
     reference TEXT,                  -- e.g. Q-260927-01234, quoted by the customer on WhatsApp/email
     access_token TEXT,               -- lets the customer reopen their request page
     contact_pref TEXT,               -- email | whatsapp | phone | wechat
+    source TEXT,                     -- marketing source, e.g. "edm / 2026-10-factory-invite" (from utm_ links)
     name TEXT NOT NULL,
     email TEXT NOT NULL,
     phone TEXT,

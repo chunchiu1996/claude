@@ -24,6 +24,7 @@ MIGRATIONS = [
     ("inquiries", "reference", "TEXT"),
     ("inquiries", "access_token", "TEXT"),
     ("inquiries", "contact_pref", "TEXT"),
+    ("inquiries", "source", "TEXT"),
 ]
 
 

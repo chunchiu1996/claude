@@ -7,9 +7,18 @@ Here's how it works: factories **consign** stock to you. You list it, sell it to
 contractors and retailers, keep a commission, and pay each factory its share. The app handles the
 storefront and the bookkeeping behind that.
 
+There are **two separate websites** in one app, for two audiences, with no links between them:
+
+| | English store | Chinese seller site (中文招商站) |
+|---|---|---|
+| Address | `/` | `/zh/` (or its own domain, see `SELLER_SITE_DOMAIN`) |
+| Audience | US contractors, shops, homeowners | Chinese factories and stock owners with goods in the US |
+| Purpose | Sell products | Recruit consignment stock; landing page for email (EDM) campaigns |
+| Look | Green, English | Navy and red, Chinese |
+
 ## What's included
 
-**Storefront (for buyers)**
+**English store (for US buyers)**
 - Home page, category pages, search, sort, "in stock only" filter, mobile-friendly
 - Product pages with specs, unit details ("23.64 sq ft per box"), typical-retail comparison, live stock
 - **Volume pricing tiers**. Prices drop automatically at quantity breaks (e.g. 20+ boxes, 100+ boxes), and the cart shows "buy 100+ and pay $X"
@@ -18,7 +27,6 @@ storefront and the bookkeeping behind that.
 - Payment by **card via Stripe** (optional) or **reserve now, pay by invoice** (Zelle/ACH/check; common for B2B)
 - **Quote requests without prices**: buyers add any product to a *quote list* with the quantities they need. They can also move their whole cart to it, or describe items you don't list. On submit they get a printable request (reference `Q-…`) that they can **send to you on WhatsApp**, by email, or save as PDF, and choose how you should reply (Email / WhatsApp / Phone / WeChat)
 - **Quote-only products**: tick *Quote only* (or put `yes` in the spreadsheet) and the price is hidden. The product shows "Price on request" and can only be added to a quote list
-- **"Sell with us / 供应商合作"**: a bilingual page where more factories can apply to consign stock
 - **Google Shopping / Facebook catalog feed** at `/feed/products.xml` (free product listings), plus `sitemap.xml`
 
 **Back office (`/admin`)**
@@ -33,9 +41,18 @@ storefront and the bookkeeping behind that.
 - **Notifications**: new quote requests, factory applications and orders are emailed to you, and customers get a copy of their quote request. This needs SMTP; see below
 - **Factories**: commission % per factory, sales, commission, amount owed, record payouts
 
-**Factory portal (`/supplier/<private-link>`)**
-- Each factory gets a private, read-only link, in **English and Chinese**. It shows the stock received, sold,
-  reserved and on hand, every sale, its earnings, payouts and the balance owed. You don't need to email them reports.
+**Chinese seller site (`/zh/`, for factories and stock owners)**
+- **Landing page** (`/zh/`): the problems it solves, services, a 5-step process, a sample dashboard, accepted categories, terms and FAQ
+- **Application form** (`/zh/apply`): company, contact (WeChat / WhatsApp / email / phone), where the stock is, categories and quantities. Applications land in *Admin → Inquiries → Factory applications* with a **Chinese reply draft** ready to send by WhatsApp or email
+- **Excel template download** (`/zh/template.xlsx`), so factories can prepare their product list before you talk
+- **Partner dashboard** (`/zh/partner/<private-link>`): each factory's private report **in Chinese**, showing stock received, sold, reserved and on hand, every sale, their earnings, payouts and the balance owed
+- **Campaign tracking**: links with `utm_source` / `utm_campaign` (e.g. from an email) are remembered, so each application records which campaign it came from
+
+**Email campaigns (Admin → Campaigns)**
+- Name a campaign to get a tracked landing-page link and a **ready-made Chinese marketing email** in HTML (it works in Outlook, Gmail, QQ Mail and 163 Mail). Copy or download it for your email tool (Mailchimp, SendCloud, Brevo…)
+- A table of applications and signed factories per campaign
+
+> The terms wording on the Chinese site (commission, monthly settlement, fees) is placeholder text. Check it matches your actual agreement in `shop/templates/seller/home.html` before sending campaigns.
 
 ## Run it locally
 
@@ -64,7 +81,9 @@ database: delete `instance/shop.db`, or skip `seed-demo`.
 | `DELIVERY_FEE` | 150 | Flat local delivery fee in dollars |
 | `STRIPE_SECRET_KEY` | *(unset)* | Enables card checkout. Without it, orders are pay-by-invoice |
 | `WHATSAPP_NUMBER` | *(unset)* | Your business WhatsApp (e.g. `+1 626 555 0199`). Adds "WhatsApp us" links and the *Send on WhatsApp* button on quote requests |
-| `WECHAT_ID` | *(unset)* | Shown on quote requests for customers who prefer WeChat |
+| `WECHAT_ID` | *(unset)* | Shown prominently on the Chinese seller site and its emails, and on quote requests |
+| `SELLER_SITE_NAME` | `SITE_NAME` | Company name shown on the Chinese seller site |
+| `SELLER_SITE_DOMAIN` | *(unset)* | Serve the Chinese seller site at the root of its own domain (e.g. `partner.example.com`). Point that domain at the same server |
 | `NOTIFY_EMAIL` | `CONTACT_EMAIL` | Where new quote requests, factory applications and orders are emailed |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | *(unset)*, 587 | Outgoing email. Without SMTP everything still lands in *Admin → Inquiries / Orders* |
 | `ALLOW_INVOICE` | 1 | Set `0` to require card payment |

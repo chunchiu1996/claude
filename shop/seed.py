@@ -172,3 +172,9 @@ def seed_demo(db):
          "message": "12-unit townhouse project, need delivery in 3 weeks."},
         [quote_line("TIL-POR-2448-CAL", 300), quote_line("VAN-36-GRY-QTZ", 24), quote_line("QTZ-SLAB-CAL-3CM", 12)],
     )
+    inquiries.create(
+        db, "supplier",
+        {"name": "陈经理", "company": "示例石材有限公司 (Demo)", "phone": "wx_demo_stone", "contact_pref": "wechat",
+         "role": "Factory / stock owner", "location": "已在美国仓库 · 新泽西", "source": "edm / demo-invite",
+         "items": "品类：台面（石英石、岩板）\n石英石板材 2 个货柜，约 180 块"},
+    )

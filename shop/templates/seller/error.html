@@ -1,0 +1,11 @@
+{% extends "seller/_layout.html" %}
+{% block title %}页面不存在 · {{ seller.name }}{% endblock %}
+{% block content %}
+<section class="s-section">
+  <div class="s-wrap s-narrow s-center s-box">
+    <h1>页面不存在</h1>
+    <p>您访问的页面不存在或链接已失效。</p>
+    <p><a class="s-btn s-btn-accent" href="{{ url_for('seller.home') }}">返回首页</a></p>
+  </div>
+</section>
+{% endblock %}

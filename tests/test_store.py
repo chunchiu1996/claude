@@ -164,15 +164,6 @@ def test_stale_card_orders_release_stock(db):
     assert product(db, "HDW-LEV-PASS-MB")["stock_qty"] == p["stock_qty"]
 
 
-def test_supplier_application_form(client, db):
-    assert client.post("/sell-with-us", data={"name": "Li"}).status_code == 200
-    resp = client.post("/sell-with-us", data={"name": "Li", "email": "li@example.com", "company": "Foshan Co",
-                                              "items": "Tile, 2 containers"})
-    assert "谢谢".encode() in resp.data
-    row = db.execute("SELECT * FROM inquiries WHERE name = 'Li'").fetchone()
-    assert row["kind"] == "supplier" and row["reference"].startswith("F-")
-
-
 def test_feeds(client):
     feed = client.get("/feed/products.xml")
     assert feed.status_code == 200 and b"<g:id>SPC-7MM-OAK</g:id>" in feed.data

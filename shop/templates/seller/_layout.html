@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-Hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}美国仓库存寄售合作 · {{ seller.name }}{% endblock %}</title>
+  <meta name="description" content="{% block description %}您在美国仓库的地板、瓷砖、橱柜、卫浴等建材库存，交给我们在美国本地销售，按月结算。{% endblock %}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='seller.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+<div class="s-topbar">
+  <div class="s-wrap">
+    <span>美国仓库存 · 寄售代销 · 本地销售</span>
+    <span class="s-contacts">
+      {% if seller.wechat %}<span>微信：{{ seller.wechat }}</span>{% endif %}
+      {% if seller.whatsapp %}<a href="{{ whatsapp_link(seller.whatsapp, '您好，我想了解美国库存寄售合作。') }}" target="_blank" rel="noopener">WhatsApp</a>{% endif %}
+      {% if seller.phone %}<span>{{ seller.phone }}</span>{% endif %}
+      <a href="mailto:{{ seller.email }}">{{ seller.email }}</a>
+    </span>
+  </div>
+</div>
+{% block header %}
+<header class="s-header">
+  <div class="s-wrap s-header-row">
+    <a class="s-logo" href="{{ url_for('seller.home') }}">{{ seller.name }}<small>美国建材寄售合作</small></a>
+    <nav class="s-nav">
+      <a href="{{ url_for('seller.home') }}#services">服务内容</a>
+      <a href="{{ url_for('seller.home') }}#process">合作流程</a>
+      <a href="{{ url_for('seller.home') }}#terms">合作方式</a>
+      <a href="{{ url_for('seller.home') }}#faq">常见问题</a>
+      <a class="s-btn s-btn-accent" href="{{ url_for('seller.apply') }}">申请合作</a>
+    </nav>
+  </div>
+</header>
+{% endblock %}
+
+<main>
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="s-footer">
+  <div class="s-wrap s-footer-grid">
+    <div>
+      <strong>{{ seller.name }}</strong>
+      <p>美国仓库：{{ seller.warehouse }}</p>
+    </div>
+    <div>
+      <strong>联系我们</strong>
+      {% if seller.wechat %}<p>微信：{{ seller.wechat }}</p>{% endif %}
+      <p>邮箱：<a href="mailto:{{ seller.email }}">{{ seller.email }}</a></p>
+      {% if seller.phone %}<p>电话：{{ seller.phone }}</p>{% endif %}
+    </div>
+    <div>
+      <strong>开始合作</strong>
+      <p><a href="{{ url_for('seller.apply') }}">填写合作申请</a></p>
+      <p><a href="{{ url_for('seller.product_template') }}">下载产品表模板（Excel）</a></p>
+    </div>
+  </div>
+</footer>
+</body>
+</html>

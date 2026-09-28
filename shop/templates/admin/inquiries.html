@@ -6,11 +6,11 @@
 <nav class="tabs">
   <a href="{{ url_for('admin.inquiries') }}" {% if not kind %}class="active"{% endif %}>All</a>
   <a href="{{ url_for('admin.inquiries', kind='quote') }}" {% if kind == 'quote' %}class="active"{% endif %}>Quote requests</a>
-  <a href="{{ url_for('admin.inquiries', kind='supplier') }}" {% if kind == 'supplier' %}class="active"{% endif %}>Factory applications</a>
+  <a href="{{ url_for('admin.inquiries', kind='supplier') }}" {% if kind == 'supplier' %}class="active"{% endif %}>Factory applications (Chinese site)</a>
 </nav>
 <div class="table-wrap">
 <table class="data">
-  <thead><tr><th>Reference</th><th>Date</th><th>From</th><th>Request</th><th>Reply by</th><th>Status</th></tr></thead>
+  <thead><tr><th>Reference</th><th>Date</th><th>From</th><th>Request</th><th>Reply by</th><th>Source</th><th>Status</th></tr></thead>
   {% for i in inquiries %}
   <tr>
     <td><a href="{{ url_for('admin.inquiry_detail', inquiry_id=i.id) }}">{{ i.reference or ("#" ~ i.id) }}</a></td>
@@ -18,6 +18,7 @@
     <td>{{ i.company or i.name }}{% if i.company %}<div class="small muted">{{ i.name }}</div>{% endif %}</td>
     <td class="small">{% if i.kind == 'supplier' %}Factory application{% else %}{{ i.item_count }} product{{ "s" if i.item_count != 1 }}{% if i["items"] %} + notes{% endif %}{% endif %}</td>
     <td class="small">{{ contact_prefs.get(i.contact_pref, "Email") }}</td>
+    <td class="small muted">{{ i.source or "" }}</td>
     <td>
       <form method="post" class="inline">
         <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><input type="hidden" name="id" value="{{ i.id }}">
@@ -28,7 +29,7 @@
       </form>
     </td>
   </tr>
-  {% else %}<tr><td colspan="6" class="muted">No inquiries yet.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="7" class="muted">No inquiries yet.</td></tr>{% endfor %}
 </table>
 </div>
 {% endblock %}

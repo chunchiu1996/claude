@@ -90,6 +90,8 @@ def new_inquiry(inquiry, items):
         contact.append(f"Type: {inquiry['role']}")
     if inquiry["location"]:
         contact.append(f"Location/ZIP: {inquiry['location']}")
+    if inquiry["source"]:
+        contact.append(f"Source: {inquiry['source']}")
     body = [f"{kind} {inquiry['reference']}", "", *contact, ""]
     if items:
         body += ["Products:", *[item_line(i) for i in items], ""]

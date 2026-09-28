@@ -254,3 +254,5 @@ table code, table.data td:first-child { white-space: nowrap; }
   body { background: #fff; }
   .form-card { box-shadow: none; border: 0; padding: 0; }
 }
+
+.email-preview { width: 100%; height: 640px; border: 1px solid var(--line); border-radius: var(--radius); margin-top: 12px; background: #eef2f7; }

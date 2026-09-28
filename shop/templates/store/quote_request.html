@@ -15,7 +15,7 @@
       <button class="btn" type="button" onclick="window.print()">Print / save as PDF</button>
       <button class="btn" type="button" data-copy="quote-text">Copy text</button>
     </div>
-    {% if site.wechat %}<p class="small">WeChat 微信: <strong>{{ site.wechat }}</strong>. Paste the copied text into WeChat.</p>{% endif %}
+    {% if site.wechat %}<p class="small">WeChat: <strong>{{ site.wechat }}</strong>. Paste the copied text into WeChat.</p>{% endif %}
     <textarea id="quote-text" class="visually-hidden" readonly>{{ message_text }}</textarea>
   </div>
 

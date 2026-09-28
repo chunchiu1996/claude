@@ -97,9 +97,9 @@ def test_supplier_statement_and_payout(admin, app, db):
     assert supplier_statement(db, 2)["balance_cents"] == 0
 
     token = db.execute("SELECT portal_token FROM suppliers WHERE id = 2").fetchone()[0]
-    portal = Client(app.test_client()).get(f"/supplier/{token}").data.decode()
+    portal = Client(app.test_client()).get(f"/zh/partner/{token}").data.decode()
     assert "待结算余额" in portal and "$4,254.00" in portal
-    assert Client(app.test_client()).get("/supplier/bad-token").status_code == 404
+    assert Client(app.test_client()).get("/zh/partner/bad-token").status_code == 404
 
 
 def test_supplier_create_and_rotate_link(admin, db):

@@ -417,23 +417,6 @@ def quote_request(reference, token):
     )
 
 
-@bp.route("/sell-with-us", methods=["GET", "POST"])
-def sell_with_us():
-    data, errors = {}, {}
-    if request.method == "POST":
-        f = request.form
-        data = {k: f.get(k, "").strip() for k in ("name", "email", "phone", "company", "location", "items", "message")}
-        errors = {k: "Required." for k in ("name", "email", "company", "items") if not data[k]}
-        if data["email"] and "@" not in data["email"]:
-            errors["email"] = "Please enter a valid email."
-        if not errors:
-            db = get_db()
-            inquiry = inq.create(db, "supplier", {**data, "role": "Factory / supplier"})
-            notify.new_inquiry(inquiry, [])
-            return render_template("store/thanks.html", kind="supplier")
-    return render_template("store/sell.html", data=data, errors=errors)
-
-
 # ---------------------------------------------------------------- misc
 
 
@@ -468,13 +451,9 @@ def sitemap():
 
 @bp.route("/robots.txt")
 def robots():
-    body = f"User-agent: *\nDisallow: /admin\nDisallow: /supplier\nDisallow: /order\nSitemap: {url_for('store.sitemap', _external=True)}\n"
+    body = ("User-agent: *\nDisallow: /admin\nDisallow: /order\nDisallow: /quote/r\nDisallow: /zh/partner\n"
+            f"Sitemap: {url_for('store.sitemap', _external=True)}\n")
     return body, 200, {"Content-Type": "text/plain"}
-
-
-@bp.app_errorhandler(404)
-def not_found(exc):
-    return render_template("store/error.html", code=404, message="We couldn't find that page."), 404
 
 
 @bp.app_errorhandler(400)

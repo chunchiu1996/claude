@@ -20,8 +20,8 @@ def create(db, kind, data, lines=()):
     """Save an inquiry. `lines` are quote-list lines: {"product": row, "qty": n}."""
     inquiry_id = db.execute(
         """INSERT INTO inquiries (kind, reference, access_token, contact_pref, name, email, phone, company,
-               role, location, items, message)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+               role, location, items, message, source)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             kind,
             _new_reference(db, "Q" if kind == "quote" else "F"),
@@ -35,6 +35,7 @@ def create(db, kind, data, lines=()):
             data.get("location") or None,
             data.get("items") or None,
             data.get("message") or None,
+            data.get("source") or None,
         ),
     ).lastrowid
     db.executemany(
@@ -102,4 +103,28 @@ def reply_draft(db, site, inquiry, items):
                   "Prices are valid for 7 days.", "", site["name"]]
     if site.get("phone"):
         lines.append(site["phone"])
+    return "\n".join(lines)
+
+
+def seller_reply_draft(seller, inquiry, template_url):
+    """Reply to a factory / stock owner who applied on the Chinese site (in Chinese)."""
+    lines = [
+        f"{inquiry['name']} 您好：",
+        "",
+        f"感谢您申请与 {seller['name']} 合作（申请编号 {inquiry['reference']}）。",
+        "",
+        "为了尽快评估和安排上架，请您准备以下资料：",
+        f"1. 产品表：请用我们的模板填写货号、品名、数量和价格 {template_url}",
+        "2. 产品图片和规格参数",
+        "3. 货物所在仓库、数量，以及预计到仓时间",
+        "",
+        "收到资料后，我们会和您确认底价、佣金和结算方式。",
+        "",
+        seller["name"],
+    ]
+    if seller.get("wechat"):
+        lines.append(f"微信：{seller['wechat']}")
+    if seller.get("phone"):
+        lines.append(f"电话：{seller['phone']}")
+    lines.append(f"邮箱：{seller['email']}")
     return "\n".join(lines)

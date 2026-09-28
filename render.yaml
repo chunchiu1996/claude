@@ -27,7 +27,11 @@ services:
       - key: WHATSAPP_NUMBER
         sync: false          # your business WhatsApp, e.g. +1 626 555 0199
       - key: WECHAT_ID
-        sync: false          # optional
+        sync: false          # shown prominently on the Chinese seller site
+      - key: SELLER_SITE_NAME
+        sync: false          # name shown on the Chinese seller site (defaults to SITE_NAME)
+      - key: SELLER_SITE_DOMAIN
+        sync: false          # optional: serve the Chinese seller site on its own domain, e.g. partner.example.com
       - key: NOTIFY_EMAIL
         sync: false          # where new quote requests & orders are emailed (defaults to CONTACT_EMAIL)
       - key: SMTP_HOST

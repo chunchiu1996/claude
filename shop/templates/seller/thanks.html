@@ -1,0 +1,17 @@
+{% extends "seller/_layout.html" %}
+{% block title %}提交成功 · {{ seller.name }}{% endblock %}
+{% block content %}
+<section class="s-section">
+  <div class="s-wrap s-narrow s-center s-box">
+    <div class="s-tick">✓</div>
+    <h1>提交成功，谢谢！</h1>
+    <p>我们已收到您的合作申请（编号 <b>{{ inquiry.reference }}</b>），会在两个工作日内与您联系。</p>
+    <p>您可以先下载产品表模板，提前准备产品信息，这样可以更快完成上架。</p>
+    <p class="s-actions s-actions-center">
+      <a class="s-btn s-btn-accent" href="{{ url_for('seller.product_template') }}">下载产品表模板</a>
+      <a class="s-btn s-btn-ghost-dark" href="{{ url_for('seller.home') }}">返回首页</a>
+    </p>
+    {% if seller.wechat %}<p class="s-muted">微信：{{ seller.wechat }}</p>{% endif %}
+  </div>
+</section>
+{% endblock %}
