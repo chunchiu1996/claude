@@ -11,7 +11,7 @@ There are **two separate websites** in one app, for two audiences, with no links
 
 | | English store | Chinese seller site (中文招商站) |
 |---|---|---|
-| Address | `/` | `/zh/` (or its own domain, see `SELLER_SITE_DOMAIN`) |
+| Address | `shop.liquidatorusa.com` (the app's `/`) | `partner.liquidatorusa.com` (the app's `/zh/`, via `SELLER_SITE_DOMAIN`) |
 | Audience | US contractors, shops, homeowners | Chinese factories and stock owners with goods in the US |
 | Purpose | Sell products | Recruit consignment stock; landing page for email (EDM) campaigns |
 | Look | Green, English | Navy and red, Chinese |
@@ -96,7 +96,8 @@ The app is one small Python process with a SQLite file, and it has no paid depen
 
 - **Cloudflare + a small server (recommended)**: follow [`deploy/CLOUDFLARE.md`](deploy/CLOUDFLARE.md).
   `docker compose up -d` runs the shop, a Cloudflare Tunnel (HTTPS, no open ports) and a daily backup.
-  The store is served at `liquidatorusa.com` and the Chinese seller site at `partner.liquidatorusa.com`.
+  The store is served at `shop.liquidatorusa.com` and the Chinese seller site at `partner.liquidatorusa.com`;
+  the main `liquidatorusa.com` site is left as it is. `/healthz` returns `ok` for uptime monitors.
   Settings go in `.env` (copy `.env.example`).
 - **Render**: *New → Blueprint* uses `render.yaml`. It creates the web service and a 1 GB persistent disk,
   and you point the domain at it from Cloudflare DNS.

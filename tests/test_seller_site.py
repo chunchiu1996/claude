@@ -96,3 +96,52 @@ def test_seller_site_on_its_own_domain(tmp_path):
     assert client.get("/static/seller.css", headers={"Host": "partner.example.com"}).status_code == 200
     store_home = client.get("/", headers={"Host": "shop.example.com"}).data.decode()
     assert "Factory-direct" in store_home and not CJK.search(store_home)
+
+
+def test_store_and_seller_site_on_liquidatorusa_subdomains(tmp_path):
+    """The production layout: shop.liquidatorusa.com = English store, partner.liquidatorusa.com = Chinese site."""
+    from shop import create_app
+
+    app = create_app({"TESTING": True, "SECRET_KEY": "t", "DATABASE": str(tmp_path / "d.db"),
+                      "UPLOAD_FOLDER": str(tmp_path / "u"), "SELLER_SITE_DOMAIN": "partner.liquidatorusa.com"})
+    client = app.test_client()
+    shop = {"Host": "shop.liquidatorusa.com"}
+    partner = {"Host": "partner.liquidatorusa.com"}
+    store_home = client.get("/", headers=shop).data.decode()
+    assert "Liquidator USA" in store_home and not CJK.search(store_home)
+    assert client.get("/healthz", headers=shop).data == b"ok"
+    assert "交给我们来卖" in client.get("/", headers=partner).data.decode()
+    assert client.get("/shop", headers=partner).status_code == 404  # store pages don't exist on the seller site
+    sitemap = client.get("/sitemap.xml", headers=shop).data.decode()
+    assert "http://shop.liquidatorusa.com/shop" in sitemap and "/zh/" not in sitemap
+
+
+def test_links_to_the_chinese_site_always_use_the_partner_domain(tmp_path):
+    """Admin runs on shop.liquidatorusa.com, but every link it gives out for the Chinese site must use partner."""
+    from shop import create_app
+    from shop.db import get_db
+    from shop.seed import seed_demo
+
+    app = create_app({"TESTING": True, "SECRET_KEY": "t", "DATABASE": str(tmp_path / "d.db"), "ADMIN_PASSWORD": "pw",
+                      "UPLOAD_FOLDER": str(tmp_path / "u"), "SELLER_SITE_DOMAIN": "partner.liquidatorusa.com"})
+    with app.app_context():
+        seed_demo(get_db())
+        token = get_db().execute("SELECT portal_token FROM suppliers WHERE id = 2").fetchone()[0]
+    client = app.test_client()
+    shop_url, partner_url = "http://shop.liquidatorusa.com", "http://partner.liquidatorusa.com"
+    with client.session_transaction(base_url=shop_url) as sess:
+        sess["_csrf"] = "t"
+    client.post("/admin/login", data={"_csrf": "t", "password": "pw"}, base_url=shop_url)
+
+    factory_page = client.get("/admin/suppliers/2", base_url=shop_url).data.decode()
+    assert f"http://partner.liquidatorusa.com/partner/{token}" in factory_page
+    campaign = client.get("/admin/campaigns?campaign=oct", base_url=shop_url).data.decode()
+    assert "http://partner.liquidatorusa.com/?utm_source=edm&amp;utm_campaign=oct" in campaign
+    assert "shop.liquidatorusa.com/zh" not in campaign
+
+    # the Chinese pages opened on the store's address move to the partner domain (keeping campaign tags)
+    resp = client.get("/zh/apply?utm_source=edm", base_url=shop_url)
+    assert resp.status_code == 301 and resp.location == "http://partner.liquidatorusa.com/apply?utm_source=edm"
+    # and the partner address serves them
+    portal = client.get(f"/partner/{token}", base_url=partner_url)
+    assert portal.status_code == 200 and "待结算余额" in portal.data.decode()

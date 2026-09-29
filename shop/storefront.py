@@ -420,6 +420,13 @@ def quote_request(reference, token):
 # ---------------------------------------------------------------- misc
 
 
+@bp.route("/healthz")
+def healthz():
+    """For uptime monitors and Docker: 'ok' when the app and its database respond."""
+    get_db().execute("SELECT 1").fetchone()
+    return "ok", 200, {"Content-Type": "text/plain", "Cache-Control": "no-store"}
+
+
 @bp.route("/media/<path:filename>")
 def media(filename):
     return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename, max_age=86400 * 30)

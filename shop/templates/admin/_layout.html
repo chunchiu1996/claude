@@ -17,7 +17,7 @@
       <a href="{{ url_for('admin.campaigns') }}" {% if 'campaign' in ep %}class="active"{% endif %}>Campaigns</a>
       <a href="{{ url_for('admin.categories') }}" {% if 'categor' in ep %}class="active"{% endif %}>Categories</a>
       <a href="{{ url_for('store.home') }}" target="_blank">English shop ↗</a>
-      <a href="{{ url_for('seller.home') }}" target="_blank">Seller site (中文) ↗</a>
+      <a href="{{ seller_url('seller.home') }}" target="_blank">Seller site (中文) ↗</a>
       <form method="post" action="{{ url_for('admin.logout') }}" class="inline">
         <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link-btn">Log out</button>
       </form>

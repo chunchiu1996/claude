@@ -4,9 +4,12 @@ The result:
 
 | Address | What it is |
 |---|---|
-| `https://liquidatorusa.com` (and `www.`) | English store for US customers |
+| `https://shop.liquidatorusa.com` | English store for US customers |
 | `https://partner.liquidatorusa.com` | Chinese seller site for factories and stock owners (email campaign landing page) |
-| `https://liquidatorusa.com/admin` | Your back office |
+| `https://shop.liquidatorusa.com/admin` | Your back office |
+
+Your main site at `liquidatorusa.com` / `www.liquidatorusa.com` is **not touched**. The shop only uses the two
+new subdomains. To send visitors to the store, add a "Shop" link on your main site pointing to `https://shop.liquidatorusa.com`.
 
 The app runs on one small server. Cloudflare sits in front of it for the domain, HTTPS and protection,
 and connects to it through a **Cloudflare Tunnel**, so the server needs no open ports.
@@ -38,15 +41,16 @@ curl -fsSL https://get.docker.com | sh
    **Cloudflared** → name it `liquidatorusa`.
 2. On the "install connector" screen, copy the **token** (the long text after `--token`). You will
    paste it into `.env`. You don't need to run their install command, because Docker runs the connector.
-3. Add these **public hostnames**. All three point to the same app:
+3. Add these two **public hostnames**. Both point to the same app:
 
    | Subdomain | Domain | Service type | URL |
    |---|---|---|---|
-   | *(empty)* | liquidatorusa.com | HTTP | `app:8000` |
-   | www | liquidatorusa.com | HTTP | `app:8000` |
+   | shop | liquidatorusa.com | HTTP | `app:8000` |
    | partner | liquidatorusa.com | HTTP | `app:8000` |
 
-   The app shows the Chinese site on `partner.` automatically (`SELLER_SITE_DOMAIN`).
+   Cloudflare creates the DNS records for `shop` and `partner` for you. **Don't add the main domain
+   or `www`**: they keep serving your current site. The app shows the Chinese site on `partner.`
+   automatically (`SELLER_SITE_DOMAIN`) and the English store on `shop.`.
 
 ## 4. Start the shop on the server
 
@@ -61,14 +65,18 @@ docker compose up -d --build
 The repository is private: when `git clone` asks for a password, use a GitHub
 [personal access token](https://github.com/settings/tokens) with read access to the repository.
 
-Open `https://liquidatorusa.com/admin`, log in, and follow the **Getting started** checklist.
-Then check `https://partner.liquidatorusa.com` for the Chinese site.
+Check that it's running:
+
+- `https://shop.liquidatorusa.com/healthz` shows **ok**
+- `https://shop.liquidatorusa.com` shows the English store
+- `https://partner.liquidatorusa.com` shows the Chinese seller site
+- On the server, `docker compose ps` shows the app as **healthy**
+
+Then open `https://shop.liquidatorusa.com/admin`, log in, and follow the **Getting started** checklist.
 
 ## 5. Recommended Cloudflare settings
 
 - **SSL/TLS → Edge Certificates → Always Use HTTPS**: on.
-- **Rules → Redirect Rules**: redirect `www.liquidatorusa.com/*` to `https://liquidatorusa.com/${1}`
-  (optional; it keeps a single address for Google).
 - **Email → Email Routing** (free): create `sales@liquidatorusa.com` and forward it to your own inbox,
   so the contact address on the site receives mail. Cloudflare only receives mail. To also *send* alerts
   from the shop, fill the `SMTP_*` settings, e.g. with a Gmail App Password, Brevo or Resend.

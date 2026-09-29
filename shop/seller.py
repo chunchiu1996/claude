@@ -4,7 +4,7 @@ It is deliberately separate from the English store: its own layout, look and nav
 links between the two. It is the landing page for email (EDM) campaigns: utm_ parameters on the
 incoming link are remembered and saved with the application so each campaign can be measured.
 """
-from flask import Blueprint, Response, abort, current_app, render_template, request, session, url_for
+from flask import Blueprint, Response, abort, current_app, redirect, render_template, request, session, url_for
 
 from . import inquiries as inq
 from . import notify
@@ -37,6 +37,31 @@ def seller_site():
 @bp.app_template_filter("unit_zh")
 def unit_zh(unit):
     return UNIT_ZH.get((unit or "").lower(), unit or "")
+
+
+def seller_url(endpoint, **values):
+    """Absolute link to a Chinese-site page. With SELLER_SITE_DOMAIN set it always uses that domain
+    (e.g. https://partner.liquidatorusa.com/apply), so links never reveal the English store's address."""
+    domain = current_app.config.get("SELLER_SITE_DOMAIN")
+    if not domain:
+        return url_for(endpoint, _external=True, **values)
+    path = url_for(endpoint, **values)
+    path = "/" + path[len("/zh/"):] if path.startswith("/zh/") else path
+    return f"{request.scheme}://{domain}{path}"
+
+
+@bp.app_context_processor
+def inject_seller_url():
+    return {"seller_url": seller_url}
+
+
+@bp.before_request
+def stay_on_seller_domain():
+    """With its own domain configured, the Chinese site is only served there: redirect other hosts."""
+    domain = current_app.config.get("SELLER_SITE_DOMAIN")
+    if (domain and request.method in ("GET", "HEAD") and request.endpoint
+            and request.host.split(":")[0].lower() != domain.lower()):
+        return redirect(seller_url(request.endpoint, **(request.view_args or {}), **request.args.to_dict()), 301)
 
 
 @bp.before_request
@@ -142,4 +167,4 @@ class SellerDomainMiddleware:
 
 def landing_url(campaign, source="edm"):
     """Absolute link to the Chinese landing page, tagged for campaign tracking."""
-    return url_for("seller.home", utm_source=source, utm_campaign=campaign, _external=True)
+    return seller_url("seller.home", utm_source=source, utm_campaign=campaign)

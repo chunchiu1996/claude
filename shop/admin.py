@@ -168,13 +168,20 @@ def _parse_product_form(db, form, product_id=None):
     upload = request.files.get("image")
     if upload and upload.filename:
         ext = Path(upload.filename).suffix.lower()
-        if ext not in IMAGE_TYPES:
+        if ext not in IMAGE_TYPES or not _looks_like_image(upload.stream.read(16)):
             errors["image"] = "Upload a JPG, PNG, WEBP or GIF image."
-        elif not errors:
+        upload.stream.seek(0)
+        if not errors:
             name = secrets.token_hex(8) + ext
             upload.save(Path(current_app.config["UPLOAD_FOLDER"]) / name)
             data["image_url"] = url_for("store.media", filename=name)
     return data, tiers, errors
+
+
+def _looks_like_image(head):
+    """Check the file's first bytes, not just its name."""
+    return (head.startswith((b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"GIF87a", b"GIF89a"))
+            or (head[:4] == b"RIFF" and head[8:12] == b"WEBP"))
 
 
 def _product_form_context(db):
@@ -440,7 +447,7 @@ def inquiry_detail(inquiry_id):
         subject = f"Your quote {inquiry['reference']} – {current_app.config['SITE_NAME']}"
     else:  # factory application from the Chinese seller site: reply in Chinese
         site = seller.seller_site()
-        draft = inq.seller_reply_draft(site, inquiry, url_for("seller.product_template", _external=True))
+        draft = inq.seller_reply_draft(site, inquiry, seller.seller_url("seller.product_template"))
         subject = f"合作申请 {inquiry['reference']} – {site['name']}"
     return render_template(
         "admin/inquiry_detail.html", inquiry=inquiry, items=items, draft=draft, statuses=inq.STATUSES,
@@ -463,10 +470,10 @@ def campaigns():
     campaign = request.args.get("campaign", "").strip() or f"factory-invite-{date.today():%Y%m}"
     campaign = "".join(ch for ch in campaign if ch.isalnum() or ch in "-_")[:60]
     landing = seller.landing_url(campaign)
-    template_link = url_for("seller.product_template", _external=True)
+    template_link = seller.seller_url("seller.product_template")
     email_html = render_template("seller/edm_email.html", seller=seller.seller_site(), landing_url=landing,
-                                 template_url=template_link, apply_url=url_for(
-                                     "seller.apply", utm_source="edm", utm_campaign=campaign, _external=True))
+                                 template_url=template_link, apply_url=seller.seller_url(
+                                     "seller.apply", utm_source="edm", utm_campaign=campaign))
     db = get_db()
     sources = db.execute(
         """SELECT COALESCE(source, 'direct') AS source, COUNT(*) AS applications,
@@ -474,7 +481,7 @@ def campaigns():
            FROM inquiries WHERE kind = 'supplier' GROUP BY COALESCE(source, 'direct') ORDER BY latest DESC"""
     ).fetchall()
     return render_template("admin/campaigns.html", campaign=campaign, landing=landing, email_html=email_html,
-                           seller_home=url_for("seller.home", _external=True), sources=sources)
+                           seller_home=seller.seller_url("seller.home"), sources=sources)
 
 
 # ---------------------------------------------------------------- suppliers
@@ -562,5 +569,5 @@ def supplier_detail(supplier_id):
         "admin/supplier_detail.html",
         supplier=supplier,
         st=supplier_statement(db, supplier_id),
-        portal_url=url_for("seller.portal", token=supplier["portal_token"], _external=True),
+        portal_url=seller.seller_url("seller.portal", token=supplier["portal_token"]),
     )

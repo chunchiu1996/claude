@@ -83,6 +83,13 @@ def create_app(test_config=None):
     _install_csrf(app)
     _install_template_helpers(app)
 
+    @app.after_request
+    def security_headers(response):
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        return response
+
     from . import admin, seller, storefront
 
     app.register_blueprint(storefront.bp)   # English store for US customers, at /

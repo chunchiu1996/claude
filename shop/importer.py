@@ -226,7 +226,7 @@ def import_rows(db, rows, reference=None, stock_mode="add"):
     try:
         for rownum, raw_row in enumerate(rows[header_index + 1:], start=header_index + 2):
             row = {}
-            for key, value in zip(headers, raw_row):
+            for key, value in zip(headers, raw_row, strict=False):  # rows may be shorter/longer than the header
                 if key in COLUMNS and key not in row:
                     row[key] = _cell(value)
             if not any(row.values()):
@@ -432,7 +432,7 @@ def template_xlsx():
     for c, title in enumerate(["Column 列名", "Required 是否必填", "Description", "说明", "Example 示例"], start=1):
         cell = guide.cell(row=start, column=c, value=title)
         cell.font, cell.fill = white_bold, brown
-    for r, (key, en, zh, required, help_en, help_zh, example) in enumerate(COLUMN_SPECS, start=start + 1):
+    for r, (_key, en, zh, required, help_en, help_zh, example) in enumerate(COLUMN_SPECS, start=start + 1):
         for c, value in enumerate([f"{en} {zh}", required, help_en, help_zh, example], start=1):
             cell = guide.cell(row=r, column=c, value=value)
             cell.alignment, cell.border = wrap_top, thin
