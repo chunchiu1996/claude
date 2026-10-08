@@ -34,7 +34,7 @@ photo caching, and connects to it through a **Cloudflare Tunnel**, so the server
 
 ## 2. Get a server
 
-Any Linux server with 1 GB of RAM or more is enough, e.g. Hetzner CX22, DigitalOcean or Vultr, about $4–6 a month.
+Any Linux server with 1 GB of RAM or more is enough, e.g. Hetzner CX23, DigitalOcean or Vultr, about $4–6 a month.
 Choose Ubuntu, then log in and install Docker:
 
 ```bash
