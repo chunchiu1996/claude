@@ -1,6 +1,6 @@
 {% macro product_image(p, cls="") -%}
   {% if p.image_url %}
-    <img class="pimg {{ cls }}" src="{{ p.image_url }}" alt="{{ p.name }}" loading="lazy">
+    <img class="pimg {{ cls }}" src="{{ p.image_url if 'large' in cls else p.image_url|thumb }}" alt="{{ p.name }}" loading="lazy">
   {% else %}
     <div class="pimg ph {{ cls }}" style="--hue: {{ 12 + ((p.category_id or 3) * 11) % 38 }}" aria-hidden="true">
       <span>{{ p.category_name or "Product" }}</span>

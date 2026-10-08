@@ -1,0 +1,97 @@
+{% extends "admin/_layout.html" %}
+{% block admin_title %}Photos{% endblock %}
+{% block admin_content %}
+<h1>Bulk photo upload</h1>
+<p class="muted">Name each photo after the product's SKU and drop them all here: they're matched to products automatically,
+  resized for the web, and shown in the shop.</p>
+
+<div class="two-col wide-left">
+  <form class="form-card" id="photo-form" method="post" action="{{ url_for('admin.photos_upload') }}" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <label class="field"><span>Photos (select many at once), or a .zip of photos</span>
+      <input type="file" name="files" id="files" multiple accept="image/*,.heic,.heif,.zip,application/zip"></label>
+    <label class="field"><span>…or a whole folder</span>
+      <input type="file" id="folder" webkitdirectory directory multiple></label>
+    <button class="btn btn-primary" id="start">Upload photos</button>
+    <div id="progress" class="small muted" aria-live="polite"></div>
+    <progress id="bar" value="0" max="1" hidden style="width:100%; accent-color: var(--brand)"></progress>
+  </form>
+  <aside class="panel">
+    <h2 class="h3">File names</h2>
+    <table class="data small">
+      <tr><td><code>TILE-600.jpg</code></td><td>main photo of SKU TILE-600</td></tr>
+      <tr><td><code>TILE-600-2.jpg</code></td><td>2nd photo (gallery)</td></tr>
+      <tr><td><code>TILE-600_3.png</code></td><td>3rd photo</td></tr>
+      <tr><td><code>TILE-600 (4).jpg</code></td><td>4th photo</td></tr>
+    </table>
+    <ul class="small">
+      <li>Upper/lower case doesn't matter. JPG, PNG, WEBP, GIF and iPhone HEIC photos all work.</li>
+      <li>Uploading a photo with the same name again replaces the old one.</li>
+      <li>Big photos are shrunk automatically, so phone photos are fine.</li>
+      <li>Factories can also paste photos straight into the Excel template: they're picked up on <a href="{{ url_for('admin.import_view') }}">Import</a>.</li>
+      <li>A .zip can hold up to 1,000 photos and {{ max_mb }} MB. Selecting files or a folder has no limit.</li>
+    </ul>
+  </aside>
+</div>
+
+<div id="results" hidden style="margin-bottom: 2rem">
+  <h2>Results <span id="summary" class="muted small"></span></h2>
+  <div class="table-wrap"><table class="data"><thead><tr><th>File</th><th>SKU</th><th>Result</th></tr></thead><tbody id="rows"></tbody></table></div>
+</div>
+
+<section>
+  <h2>Products without a photo <span class="muted small">{{ "{:,}".format(missing_count) }} of {{ "{:,}".format(total) }} in the shop</span></h2>
+  {% if missing %}
+  <div class="table-wrap"><table class="data small">
+    <thead><tr><th>SKU (use as file name)</th><th>Product</th></tr></thead>
+    {% for p in missing %}<tr><td><code>{{ p.sku }}</code></td><td><a href="{{ url_for('admin.product_edit', product_id=p.id) }}">{{ p.name }}</a></td></tr>{% endfor %}
+  </table></div>
+  {% if missing_count > missing|length %}<p class="small muted">Showing the first {{ missing|length }}. <a href="{{ url_for('admin.products', nophoto=1) }}">See all</a></p>{% endif %}
+  {% else %}<p class="muted">Every product in the shop has a photo.</p>{% endif %}
+</section>
+
+<script>
+(function () {
+  var form = document.getElementById('photo-form');
+  var csrf = form.querySelector('input[name=_csrf]').value;
+  var IMAGE = /\.(jpe?g|png|webp|gif|bmp|tiff?|heic|heif|zip)$/i;
+  function esc(s) { var d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+  form.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var files = [].concat(Array.from(document.getElementById('files').files), Array.from(document.getElementById('folder').files))
+      .filter(function (f) { return IMAGE.test(f.name) && f.name.charAt(0) !== '.'; });
+    if (!files.length) { alert('Choose some photos (or a .zip) first.'); return; }
+    var button = document.getElementById('start'), bar = document.getElementById('bar'), progress = document.getElementById('progress');
+    var rows = document.getElementById('rows'), ok = 0, failed = 0;
+    button.disabled = true; bar.hidden = false; bar.max = files.length; bar.value = 0;
+    document.getElementById('results').hidden = false; rows.innerHTML = '';
+    function add(r) {
+      if (r.status === 'ok') ok++; else failed++;
+      var tr = document.createElement('tr');
+      tr.className = r.status === 'ok' ? '' : 'warn';
+      tr.innerHTML = '<td>' + esc(r.file) + '</td><td>' + (r.sku ? '<code>' + esc(r.sku) + '</code>' : '') + '</td><td>' +
+        (r.status === 'ok' ? '✓ ' : '✗ ') + esc(r.message) + '</td>';
+      if (r.status === 'ok') rows.appendChild(tr); else rows.insertBefore(tr, rows.firstChild);
+    }
+    for (var i = 0; i < files.length; i++) {
+      progress.textContent = 'Uploading ' + (i + 1) + ' of ' + files.length + ': ' + files[i].name;
+      var data = new FormData();
+      data.append('_csrf', csrf); data.append('format', 'json'); data.append('files', files[i], files[i].name);
+      try {
+        var resp = await fetch(form.action, { method: 'POST', body: data, headers: { Accept: 'application/json' }, credentials: 'same-origin' });
+        var body = await resp.json().catch(function () { return {}; });
+        if (!resp.ok) add({ file: files[i].name, status: 'error', message: body.error || ('Server said ' + resp.status) });
+        else if (!body.results) add({ file: files[i].name, status: 'error', message: 'Your admin login expired. Refresh the page, log in and upload again.' });
+        else body.results.forEach(add);
+      } catch (err) {
+        add({ file: files[i].name, status: 'error', message: 'Upload failed (connection lost?). Try this file again.' });
+      }
+      bar.value = i + 1;
+      document.getElementById('summary').textContent = ok + ' saved, ' + failed + ' need attention';
+    }
+    progress.textContent = 'Done: ' + ok + ' photos saved' + (failed ? ', ' + failed + ' need attention (listed first)' : '') + '.';
+    button.disabled = false;
+  });
+})();
+</script>
+{% endblock %}

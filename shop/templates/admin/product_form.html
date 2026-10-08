@@ -43,9 +43,20 @@
     {{ field("warehouse", "Warehouse location", form, errors, placeholder="Ontario, CA") }}
     {{ field("image_url", "Image URL", form, errors, placeholder="https://…") }}
   </div>
-  <label class="field{% if errors.get('image') %} has-error{% endif %}"><span>…or upload an image</span><input type="file" name="image" accept="image/*">
-    {% if errors.get('image') %}<em class="error">{{ errors.image }}</em>{% endif %}</label>
-  {% if product and product.image_url %}<label class="check"><input type="checkbox" name="remove_image" value="1"> Remove current image</label>{% endif %}
+  <div class="grid-2">
+    <label class="field{% if errors.get('image') %} has-error{% endif %}"><span>…or upload the main photo</span><input type="file" name="image" accept="image/*">
+      {% if errors.get('image') %}<em class="error">{{ errors.image }}</em>{% endif %}</label>
+    <label class="field"><span>More photos (gallery)</span><input type="file" name="extra_images" accept="image/*" multiple></label>
+  </div>
+  {% if product and product.image_url %}<label class="check"><input type="checkbox" name="remove_image" value="1"> Remove main photo</label>{% endif %}
+  {% if gallery %}
+  <div class="field"><span>Gallery photos (tick to remove)</span>
+    <div class="gallery">
+      {% for g in gallery %}<label class="gallery-thumb"><img src="{{ g.url|thumb }}" alt="Photo {{ g.position }}">
+        <span class="small"><input type="checkbox" name="remove_photo" value="{{ g.position }}"> #{{ g.position }}</span></label>{% endfor %}
+    </div>
+  </div>
+  {% endif %}
   {% if not product %}
   <div class="grid-2">
     {{ field("initial_stock", "Initial stock received", form, errors, type="number", attrs='min="0"') }}

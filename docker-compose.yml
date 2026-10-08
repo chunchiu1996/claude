@@ -8,6 +8,8 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    environment:
+      CLIENT_IP_HEADER: CF-Connecting-IP   # visitors' real IP, set by Cloudflare (the app has no open ports)
     volumes:
       - shopdata:/data            # database, uploaded photos, backups
     healthcheck:

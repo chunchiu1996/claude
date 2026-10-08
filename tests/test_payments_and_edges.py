@@ -8,9 +8,9 @@ import pytest
 
 from shop import orders, payments
 
-from .conftest import product
+from .conftest import image_bytes, product
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+PNG = image_bytes("PNG")
 
 
 class FakeResponse(io.BytesIO):
@@ -92,14 +92,15 @@ def test_product_photo_upload_checks_the_file(admin, db, app):
     form = {"sku": p["sku"], "name": p["name"], "price": "79.00", "unit": "set", "moq": "1", "active": "1"}
     resp = admin.post(f"/admin/products/{p['id']}", data={**form, "image": (io.BytesIO(b"<script>x</script>"), "evil.png")},
                       content_type="multipart/form-data")
-    assert b"Upload a JPG, PNG, WEBP or GIF image" in resp.data and not product(db, p["sku"])["image_url"]
+    assert b"Not an image we can read" in resp.data and not product(db, p["sku"])["image_url"]
 
     admin.post(f"/admin/products/{p['id']}", data={**form, "image": (io.BytesIO(PNG), "barn.png")},
                content_type="multipart/form-data")
     url = product(db, p["sku"])["image_url"]
-    assert url and url.startswith("/media/") and url.endswith(".png")
+    assert url and url.startswith("/media/") and url.endswith(".jpg")  # re-encoded: nothing but pixels survives
     media = admin.get(url)
-    assert media.status_code == 200 and media.data == PNG and media.headers["X-Content-Type-Options"] == "nosniff"
+    assert media.status_code == 200 and media.data[:3] == b"\xff\xd8\xff"
+    assert media.headers["X-Content-Type-Options"] == "nosniff"
 
 
 def test_category_can_be_renamed(admin, db):

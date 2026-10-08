@@ -64,7 +64,8 @@ COLUMN_SPECS = [
      "Key: Value pairs separated by ;", "参数名: 参数值，多个用 ; 分隔。",
      "Thickness: 7mm; Wear layer: 20 mil; Plank size: 7.2 x 60 in"),
     ("image_url", "Image URL", "图片链接", OPTIONAL,
-     "Link to a product photo. You can also upload photos later in admin.", "产品图片链接（也可以之后在后台上传）。",
+     "Link to a product photo. Or paste the photo into this row, or send photos named by SKU.",
+     "产品图片链接。也可以把图片直接粘贴到本行，或发送按 SKU 命名的图片文件。",
      "https://example.com/oak.jpg"),
     ("featured", "Featured", "首页推荐", OPTIONAL, "yes = show on the home page.", "yes = 在首页展示。", "no"),
     ("active", "Visible", "上架", OPTIONAL,
@@ -171,6 +172,8 @@ def _cell(value):
         return ""
     if isinstance(value, bool):
         return "yes" if value else "no"
+    if isinstance(value, datetime.datetime) and value.time() == datetime.time(0):
+        value = value.date()
     if isinstance(value, (datetime.time, datetime.timedelta)):
         # Excel turns a volume price typed as "50:2.49" into the time 00:50:02.49 — turn it back.
         if isinstance(value, datetime.time):
@@ -183,25 +186,50 @@ def _cell(value):
     return str(value).strip()
 
 
+SPREADSHEET_TYPES = (".xlsx", ".xlsm", ".xls", ".ods")
+
+
+def pick_sheet(names):
+    """The template's "Products 产品" sheet if present, otherwise the first sheet."""
+    return next((n for n in names if _squash(n).startswith("products") or "产品" in n), names[0])
+
+
 def read_upload(filename, raw):
-    """Turn an uploaded .xlsx or .csv into a list of rows (lists of strings)."""
-    if (filename or "").lower().endswith((".xlsx", ".xlsm")):
+    """Turn an uploaded spreadsheet (.xlsx, .xls, .ods) or .csv into a list of rows (lists of strings)."""
+    name = (filename or "").lower()
+    if not name.endswith(SPREADSHEET_TYPES):
+        return list(csv.reader(io.StringIO(decode(raw))))
+    try:
+        from python_calamine import CalamineWorkbook  # fast reader (Rust); also opens old .xls and .ods
+    except ImportError:  # pragma: no cover - fallback if the wheel isn't available
+        CalamineWorkbook = None
+    try:
+        if CalamineWorkbook is not None:
+            book = CalamineWorkbook.from_filelike(io.BytesIO(raw))
+            sheet = book.get_sheet_by_name(pick_sheet(book.sheet_names))
+            return [[_cell(v) for v in row] for row in sheet.to_python(skip_empty_area=False)]
+        if name.endswith(".xls"):
+            raise ValueError("Old .xls files can't be read here. Save the file as .xlsx and upload again.")
         from openpyxl import load_workbook
 
-        try:
-            workbook = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
-        except Exception as exc:  # openpyxl raises many different types for corrupt files
-            raise ValueError("Couldn't read that Excel file. Save it as .xlsx (or CSV) and try again.") from exc
-        sheet = next(
-            (ws for ws in workbook.worksheets if _squash(ws.title).startswith("products") or "产品" in ws.title),
-            workbook.worksheets[0],
-        )
+        workbook = load_workbook(io.BytesIO(raw), read_only=True, data_only=True)
+        sheet = workbook[pick_sheet(workbook.sheetnames)]
         rows = [[_cell(v) for v in row] for row in sheet.iter_rows(values_only=True)]
         workbook.close()
         return rows
-    if (filename or "").lower().endswith(".xls"):
-        raise ValueError("Old .xls files aren't supported. In Excel choose File → Save As → .xlsx, then upload again.")
-    return list(csv.reader(io.StringIO(decode(raw))))
+    except ValueError:
+        raise
+    except Exception as exc:  # corrupt or password-protected files raise many different error types
+        raise ValueError("Couldn't read that spreadsheet. Save it as .xlsx (or CSV) and try again.") from exc
+
+
+def find_header(rows):
+    """Factory packing lists often have title rows above the real header: find the row with a SKU column."""
+    for i, row in enumerate(rows[:15]):
+        headers = [_norm_header(c) for c in row]
+        if "sku" in headers:
+            return i, headers
+    return None, None
 
 
 def import_products(db, text, reference=None, stock_mode="add"):
@@ -213,14 +241,10 @@ def import_rows(db, rows, reference=None, stock_mode="add"):
     """stock_mode 'add': the quantity column is units just received (a new shipment).
     stock_mode 'set': the quantity column is the full count on hand (a stocktake)."""
     result = ImportResult()
-    # Factory packing lists often have title rows above the real header, so look for it.
-    header_index = next(
-        (i for i, row in enumerate(rows[:15]) if "sku" in {_norm_header(c) for c in row}), None
-    )
+    header_index, headers = find_header(rows)
     if header_index is None:
         result.errors.append((1, "Couldn't find a 'SKU 货号' column. Download the template to see the expected columns."))
         return result
-    headers = [_norm_header(c) for c in rows[header_index]]
 
     seen = set()
     try:
@@ -256,7 +280,7 @@ def _import_row(db, row, reference, stock_mode, result, seen, rownum):
     sku = row.get("sku", "")
     if not sku:
         raise ValueError("SKU is required")
-    if re.fullmatch(r"\d{4}-\d{2}-\d{2}( 00:00:00)?", sku):
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}( 00:00:00)?", sku):  # a date: Excel converted the SKU
         raise ValueError(f"SKU {sku} looks like a date: Excel converted it. Format the SKU column as Text and retype it")
     if sku.lower() in seen:
         raise ValueError(f"SKU {sku} appears more than once in this file")
@@ -306,7 +330,7 @@ def _import_row(db, row, reference, stock_mode, result, seen, rownum):
                 raise ValueError(f"New SKU {sku} needs a price (or set Quote only to yes)")
             fields["price_cents"] = 0
         fields["sku"] = sku
-        fields["slug"] = unique_slug(db, "products", slugify(fields["name"]))
+        fields["slug"] = unique_slug(db, "products", slugify(fields["name"]), alt=slugify(sku))
         product_id = db.execute(
             f"INSERT INTO products ({', '.join(fields)}) VALUES ({', '.join('?' for _ in fields)})",
             list(fields.values()),
@@ -423,7 +447,10 @@ def template_xlsx():
          "5. “仅询价”填 yes：网店不显示价格，顾客提交询价。"),
         ("6. Hover over a header cell to see help. See the “Example 示例” sheet for filled-in rows.",
          "6. 鼠标悬停表头可查看说明；“Example 示例”表中有填写范例。"),
-        ("7. Save as .xlsx and send it back to us.", "7. 保存为 .xlsx 文件发回给我们。"),
+        ("7. Photos: paste product photos into the row of their product (anywhere after the last column), "
+         "or send photo files named by SKU, e.g. TILE-600.jpg, TILE-600-2.jpg.",
+         "7. 产品图片：可直接把图片粘贴到该产品所在行（最后一列之后），或把图片文件按 SKU 命名发给我们，如 TILE-600.jpg、TILE-600-2.jpg。"),
+        ("8. Save as .xlsx and send it back to us.", "8. 保存为 .xlsx 文件发回给我们。"),
     ]
     for r, (en, zh) in enumerate(notes, start=1):
         guide.cell(row=r, column=1, value=en).font = bold if r == 1 else Font()

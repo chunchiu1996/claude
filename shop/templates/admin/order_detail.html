@@ -41,6 +41,18 @@
     {% if order.fulfillment == 'delivery' %}<p>{{ order.address }}<br>{{ order.city }}, {{ order.state }} {{ order.zip }}</p>{% endif %}
     {% if order.notes %}<h2 class="h3">Customer notes</h2><p>{{ order.notes }}</p>{% endif %}
     <p class="small muted">Placed {{ order.created_at }} UTC · Payment: {{ order.payment_method }}</p>
+    <h2 class="h3">Invoice</h2>
+    <p class="actions">
+      <a class="btn btn-sm" href="{{ url_for('admin.order_invoice', order_id=order.id) }}" target="_blank">View / print invoice</a>
+      {% if order.status != 'cancelled' %}
+      <form method="post" action="{{ url_for('admin.order_email_invoice', order_id=order.id) }}" class="inline">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="btn btn-sm btn-primary" {% if not email_ready %}disabled title="Set up email first (Admin → Email)"{% endif %}>Email invoice to customer</button>
+      </form>
+      {% endif %}
+    </p>
+    {% if order.invoice_sent_at %}<p class="small muted">Invoice emailed {{ order.invoice_sent_at }} UTC</p>{% endif %}
+    {% if not email_ready %}<p class="small muted">Email isn't set up yet: <a href="{{ url_for('admin.email_settings') }}">set it up</a>, or print the invoice and send it yourself.</p>{% endif %}
     <p class="small"><a href="{{ url_for('store.order_status', number=order.number, token=order.access_token) }}" target="_blank">Customer's order page ↗</a> (share this link in your invoice email)</p>
   </aside>
 </div>

@@ -23,13 +23,20 @@ def slugify(text):
     return re.sub(r"[^a-z0-9]+", "-", (text or "").lower()).strip("-")[:80] or "item"
 
 
-def unique_slug(db, table, base, exclude_id=None):
-    slug, n = base, 2
-    while True:
+def unique_slug(db, table, base, exclude_id=None, alt=None):
+    """base, else base-<alt> (e.g. the SKU, so many same-named products stay fast and readable), else base-2, -3…"""
+    def free(slug):
         row = db.execute(f"SELECT id FROM {table} WHERE slug = ?", (slug,)).fetchone()
-        if row is None or row["id"] == exclude_id:
-            return slug
-        slug, n = f"{base}-{n}", n + 1
+        return row is None or row["id"] == exclude_id
+
+    if free(base):
+        return base
+    if alt and free(f"{base}-{alt}"):
+        return f"{base}-{alt}"
+    n = 2
+    while not free(f"{base}-{n}"):
+        n += 1
+    return f"{base}-{n}"
 
 
 def get_tiers(db, product_id):

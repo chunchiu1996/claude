@@ -14,7 +14,7 @@ There are **two separate websites** in one app, for two audiences, with no links
 | Address | `shop.liquidatorusa.com` (the app's `/`) | `partner.liquidatorusa.com` (the app's `/zh/`, via `SELLER_SITE_DOMAIN`) |
 | Audience | US contractors, shops, homeowners | Chinese factories and stock owners with goods in the US |
 | Purpose | Sell products | Recruit consignment stock; landing page for email (EDM) campaigns |
-| Look | Green, English | Navy and red, Chinese |
+| Look | Warm terracotta and cream, English | Walnut and persimmon, Chinese |
 
 ## What's included
 
@@ -31,14 +31,17 @@ There are **two separate websites** in one app, for two audiences, with no links
 
 **Back office (`/admin`)**
 - Dashboard: 30-day sales, orders to fulfill, invoices to send, new inquiries, low stock, inventory value
-- Products: create and edit, image upload, volume tiers, specs, hide/feature
-- **Spreadsheet import**: upload the file a factory sends, **Excel (.xlsx) or CSV** (Chinese-Excel GBK CSVs too). English, Chinese or bilingual headers all work, and title rows above the header (as on a typical packing list) are skipped. New SKUs are created, existing ones updated, and received stock is logged against the container number. The import is all-or-nothing, so re-uploading a fixed file never double-counts stock
+- Products: create and edit, main photo plus a photo gallery, volume tiers, specs, hide/feature. The list is paged (50 per page) and can be filtered by factory, low stock or "no photo"
+- **Bulk photo upload** (*Admin → Photos*): select hundreds of photos, a whole folder, or a .zip. Each photo goes to the product whose SKU matches its file name (`TILE-600.jpg` is the main photo, `TILE-600-2.jpg` the 2nd…). Photos are rotated, resized and compressed automatically (phone photos and iPhone HEIC work), with a small version for product cards. A results table lists any file that didn't match a SKU
+- **Spreadsheet import**: upload the file a factory sends, **Excel (.xlsx, .xls), OpenOffice (.ods) or CSV** (Chinese-Excel GBK CSVs too). **Photos pasted into the Excel file** are attached to the product on the same row. Tested with 20,000 rows in one file (about 9 seconds). English, Chinese or bilingual headers all work, and title rows above the header (as on a typical packing list) are skipped. New SKUs are created, existing ones updated, and received stock is logged against the container number. The import is all-or-nothing, so re-uploading a fixed file never double-counts stock
 - **Bilingual Excel template for factories**: `sample_data/product-import-template.xlsx`, also downloadable from *Admin → Import*. It has a blank *Products 产品* sheet with dropdowns and header tooltips, an *Instructions 说明* sheet, and an *Example 示例* sheet
 - CSV export (edit in Excel and re-import in "stocktake" mode)
 - Stock receive/adjust with a full movement history per SKU
 - Orders: mark paid → fulfilled, or cancel (the stock returns automatically). Abandoned card checkouts release their stock after 24 h
+- **Invoices**: a printable invoice for every order (print or save as PDF) with your payment instructions, and an **Email invoice** button. Customers can open theirs from the order page too
 - **Inquiries inbox**: each quote request shows the products, quantities, stock on hand and list prices. There's a **ready-to-send price quote**: list and volume prices are pre-filled, with blanks for quote-only items. Edit it, then click **Send on WhatsApp** (opens a chat with the customer's number) or **Send by email**
-- **Notifications**: new quote requests, factory applications and orders are emailed to you, and customers get a copy of their quote request. This needs SMTP; see below
+- **Email**: new quote requests, factory applications and orders are emailed to you. Customers get an **order confirmation** and a copy of their quote request. *Admin → Email* shows the settings and has a **Send test email** button. Emails are sent in the background, so checkout never waits on the mail server. This needs SMTP; see below
+- **Login protection**: after 5 wrong passwords, that visitor can't try again for 15 minutes
 - **Factories**: commission % per factory, sales, commission, amount owed, record payouts
 
 **Chinese seller site (`/zh/`, for factories and stock owners)**
@@ -85,7 +88,11 @@ database: delete `instance/shop.db`, or skip `seed-demo`.
 | `SELLER_SITE_NAME` | `SITE_NAME` | Company name shown on the Chinese seller site |
 | `SELLER_SITE_DOMAIN` | *(unset)* | Serve the Chinese seller site at the root of its own domain (e.g. `partner.example.com`). Point that domain at the same server |
 | `NOTIFY_EMAIL` | `CONTACT_EMAIL` | Where new quote requests, factory applications and orders are emailed |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | *(unset)*, 587 | Outgoing email. Without SMTP everything still lands in *Admin → Inquiries / Orders* |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | *(unset)*, 587 | Outgoing email (alerts, order confirmations, invoices). Port 465 uses SSL; others use STARTTLS (`SMTP_STARTTLS=0` turns it off). Without SMTP everything still lands in *Admin → Inquiries / Orders* |
+| `PAYMENT_INSTRUCTIONS` | *(unset)* | How customers pay an invoice (Zelle, bank transfer, check…), printed on invoices. `\n` starts a new line |
+| `MAX_UPLOAD_MB` | 95 | Largest single upload. Keep it under 100 behind Cloudflare |
+| `CLIENT_IP_HEADER` | *(unset)* | Header with the visitor's real IP, for the login limit. `docker-compose.yml` sets `CF-Connecting-IP` |
+| `WEB_WORKERS` | 2 | Gunicorn processes in Docker (each runs 4 threads) |
 | `ALLOW_INVOICE` | 1 | Set `0` to require card payment |
 | `DATABASE`, `UPLOAD_FOLDER` | `instance/…` | Where the SQLite DB and uploaded images live |
 | `TRUST_PROXY`, `SESSION_COOKIE_SECURE` | 0 | Set `1` behind an HTTPS host. The Dockerfile already does this |
@@ -111,17 +118,27 @@ snapshots from `flask --app wsgi backup-db` in `backups/`. Copy it off the serve
 2. Set `CONTACT_EMAIL`, `CONTACT_PHONE`, `WAREHOUSE_ADDRESS` and `WHATSAPP_NUMBER`. Set the SMTP variables if you want email alerts. For Gmail: `SMTP_HOST=smtp.gmail.com`, `SMTP_USER=you@gmail.com`, and an [App Password](https://myaccount.google.com/apppasswords) as `SMTP_PASSWORD`.
 3. Add each factory under *Factories*, then send them `product-import-template.xlsx`.
 4. Upload each returned file under *Import*. Use *Quote only = yes* for anything you'd rather price per customer (slabs, custom sizes, full-container deals).
-5. Add photos: upload them on each product page, or put photo links in the spreadsheet's *Image URL* column.
-6. Place a test order and send a test quote request from your phone to check the WhatsApp/email flow end to end.
+5. Add photos: name them by SKU and drop them all on *Admin → Photos* (or a .zip). Factories can also paste photos into the Excel template, or put photo links in its *Image URL* column.
+6. Set up email and press **Send test email** on *Admin → Email*. Set `PAYMENT_INSTRUCTIONS` so invoices say how to pay.
+7. Place a test order and send a test quote request from your phone to check the WhatsApp/email flow end to end.
+
+## Limits
+
+| | Limit | Why |
+|---|---|---|
+| One spreadsheet | about 30,000 rows, up to 95 MB | Cloudflare ends requests after 100 seconds. 20,000 rows take about 9 s. Split bigger lists into several files |
+| One upload (spreadsheet or .zip) | 95 MB | Cloudflare's free plan accepts up to 100 MB per request |
+| One .zip of photos | 1,000 photos | Keeps each upload well under 100 seconds. Selecting photos or a folder has no limit: the page sends them one at a time |
+| One photo | 30 MB | Stored at up to 1600 px, plus a 600 px version for product cards |
 
 ## Day-to-day workflow
 
 1. **A factory ships a container**: add the factory under *Factories* and set its commission.
 2. **The container arrives**: *Import* the factory's spreadsheet with the container number as the reference.
-   Use the template (`sample_data/product-import-template.csv`) as the column guide.
+   Use the Excel template (`sample_data/product-import-template.xlsx`) as the column guide. Then drop the photos on *Photos*.
 3. **Send the factory its private dashboard link** from its factory page.
 4. **Quote requests come in**: open one under *Inquiries*, fill in the blank prices in the draft reply, click *Send on WhatsApp* or *Send by email*, then set the status to *quoted*.
-5. **Orders come in**: invoice orders show as *Awaiting payment*. Send the invoice, then *Mark paid*, then *Mark fulfilled* at pickup or delivery.
+5. **Orders come in**: the customer gets a confirmation email. Invoice orders show as *Awaiting payment*: press *Email invoice to customer*, then *Mark paid* when the money arrives, then *Mark fulfilled* at pickup or delivery.
 6. **Pay factories monthly**: each factory page shows the balance owed. Record the payout with the wire reference.
 
 ## Next steps worth considering
@@ -129,7 +146,6 @@ snapshots from `flask --app wsgi backup-db` in `backups/`. Copy it off the serve
 - Add real product photos. Placeholders are shown until then, and Google Shopping requires images.
 - Submit `/feed/products.xml` to Google Merchant Center and Meta Commerce Manager (both free).
 - Automatic WhatsApp alerts to your phone (needs the paid WhatsApp Business API, e.g. through Twilio). Today customers send requests to your WhatsApp themselves with one tap, and alerts come by email.
-- Bulk photo upload (match image files to SKUs by file name).
 - Sales tax: enable Stripe Tax, or add tax on invoices per your state's rules. Check your resale/consignment obligations with an accountant.
 - A Stripe webhook, for payments where the buyer closes the tab before returning to the site. Today the order page confirms payment when the buyer returns, and staff can mark orders paid.
 - A signed consignment agreement with each factory covering pricing authority, commission, payout schedule, insurance, and damaged/unsold stock.

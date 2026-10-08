@@ -9,7 +9,7 @@ from flask.cli import with_appcontext
 
 def get_db():
     if "db" not in g:
-        g.db = sqlite3.connect(current_app.config["DATABASE"], timeout=10)
+        g.db = sqlite3.connect(current_app.config["DATABASE"], timeout=30)
         g.db.row_factory = sqlite3.Row
         g.db.execute("PRAGMA foreign_keys = ON")
     return g.db
@@ -28,6 +28,7 @@ MIGRATIONS = [
     ("inquiries", "access_token", "TEXT"),
     ("inquiries", "contact_pref", "TEXT"),
     ("inquiries", "source", "TEXT"),
+    ("orders", "invoice_sent_at", "TEXT"),
 ]
 
 

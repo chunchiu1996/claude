@@ -29,7 +29,8 @@ def create_app(test_config=None):
         SECRET_KEY=env("SECRET_KEY"),
         DATABASE=env("DATABASE", os.path.join(app.instance_path, "shop.db")),
         UPLOAD_FOLDER=env("UPLOAD_FOLDER", os.path.join(app.instance_path, "uploads")),
-        MAX_CONTENT_LENGTH=10 * 1024 * 1024,
+        # Largest upload (spreadsheet or zip of photos). Cloudflare's free plan stops requests at 100 MB.
+        MAX_CONTENT_LENGTH=int(env("MAX_UPLOAD_MB", "95")) * 1024 * 1024,
         SITE_NAME=env("SITE_NAME", "Liquidator USA"),
         SITE_TAGLINE=env(
             "SITE_TAGLINE", "Factory-direct flooring, tile, cabinets & fixtures — in stock at our US warehouse."
@@ -41,6 +42,8 @@ def create_app(test_config=None):
         STRIPE_SECRET_KEY=env("STRIPE_SECRET_KEY"),
         DELIVERY_FEE_CENTS=parse_money(env("DELIVERY_FEE", "150")),
         ALLOW_INVOICE=env("ALLOW_INVOICE", "1") != "0",
+        # Printed on invoices: how customers pay you (Zelle, bank transfer, check…). "\n" starts a new line.
+        PAYMENT_INSTRUCTIONS=env("PAYMENT_INSTRUCTIONS", ""),
         # Where quote requests and orders are sent
         WHATSAPP_NUMBER=env("WHATSAPP_NUMBER", ""),
         WECHAT_ID=env("WECHAT_ID", ""),
@@ -55,6 +58,9 @@ def create_app(test_config=None):
         # Chinese factories and stock owners. Optionally served on its own domain.
         SELLER_SITE_NAME=env("SELLER_SITE_NAME", ""),
         SELLER_SITE_DOMAIN=env("SELLER_SITE_DOMAIN", ""),
+        # Header holding the visitor's real IP when every request comes through a proxy that sets it
+        # (CF-Connecting-IP behind a Cloudflare Tunnel). Used to slow down password guessing.
+        CLIENT_IP_HEADER=env("CLIENT_IP_HEADER", ""),
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SECURE=env("SESSION_COOKIE_SECURE", "0") == "1",
@@ -123,8 +129,10 @@ def _install_template_helpers(app):
         return f"{rate * 100:g}%"
 
     from .notify import site_info, whatsapp_link
+    from .photos import thumb_url
 
     app.jinja_env.globals["whatsapp_link"] = whatsapp_link
+    app.jinja_env.filters["thumb"] = thumb_url
 
     @app.context_processor
     def inject_globals():

@@ -46,7 +46,26 @@ CREATE TABLE IF NOT EXISTS products (
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+-- SKUs are matched case-insensitively (imports, photo uploads); without this every lookup scans the table.
+CREATE INDEX IF NOT EXISTS idx_products_sku_nocase ON products(sku COLLATE NOCASE);
 CREATE INDEX IF NOT EXISTS idx_products_supplier ON products(supplier_id);
+
+-- Extra product photos (the main photo is products.image_url). position 2, 3, ... from SKU-2.jpg, SKU-3.jpg
+CREATE TABLE IF NOT EXISTS product_images (
+    id INTEGER PRIMARY KEY,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    position INTEGER NOT NULL CHECK (position >= 2),
+    url TEXT NOT NULL,
+    UNIQUE (product_id, position)
+);
+
+-- Failed admin logins, for rate limiting password guessing.
+CREATE TABLE IF NOT EXISTS login_attempts (
+    id INTEGER PRIMARY KEY,
+    ip TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_login_attempts_ip ON login_attempts(ip, created_at);
 
 -- Volume pricing: buying >= min_qty units gets price_cents per unit.
 CREATE TABLE IF NOT EXISTS price_tiers (
@@ -92,6 +111,7 @@ CREATE TABLE IF NOT EXISTS orders (
     total_cents INTEGER NOT NULL,
     stripe_session_id TEXT,
     admin_note TEXT,
+    invoice_sent_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );

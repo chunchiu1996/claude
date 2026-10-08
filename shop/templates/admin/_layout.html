@@ -12,10 +12,12 @@
       <a href="{{ url_for('admin.orders_list') }}" {% if 'order' in ep %}class="active"{% endif %}>Orders</a>
       <a href="{{ url_for('admin.products') }}" {% if 'product' in ep %}class="active"{% endif %}>Products</a>
       <a href="{{ url_for('admin.import_view') }}" {% if 'import' in ep %}class="active"{% endif %}>Import</a>
+      <a href="{{ url_for('admin.photos_view') }}" {% if 'photos' in ep %}class="active"{% endif %}>Photos</a>
       <a href="{{ url_for('admin.suppliers') }}" {% if 'supplier' in ep %}class="active"{% endif %}>Factories</a>
       <a href="{{ url_for('admin.inquiries') }}" {% if 'inquir' in ep %}class="active"{% endif %}>Inquiries</a>
       <a href="{{ url_for('admin.campaigns') }}" {% if 'campaign' in ep %}class="active"{% endif %}>Campaigns</a>
       <a href="{{ url_for('admin.categories') }}" {% if 'categor' in ep %}class="active"{% endif %}>Categories</a>
+      <a href="{{ url_for('admin.email_settings') }}" {% if 'email_settings' in ep %}class="active"{% endif %}>Email</a>
       <a href="{{ url_for('store.home') }}" target="_blank">English shop ↗</a>
       <a href="{{ seller_url('seller.home') }}" target="_blank">Seller site (中文) ↗</a>
       <form method="post" action="{{ url_for('admin.logout') }}" class="inline">
@@ -27,4 +29,5 @@
 </header>
 {% endblock %}
 {% block footer %}{% endblock %}
-{% block content %}{% block admin_content %}{% endblock %}{% endblock %}
+{# email_off: stops Cloudflare's email obfuscation from rewriting addresses in reply drafts and campaign HTML #}
+{% block content %}<!--email_off-->{% block admin_content %}{% endblock %}<!--/email_off-->{% endblock %}

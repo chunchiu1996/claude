@@ -4,7 +4,7 @@ services:
     name: liquidatorusa
     runtime: docker
     plan: starter            # ~$7/mo; a persistent disk requires a paid plan
-    healthCheckPath: /
+    healthCheckPath: /healthz
     disk:
       name: data
       mountPath: /data
@@ -40,3 +40,9 @@ services:
         sync: false
       - key: SMTP_PASSWORD
         sync: false          # for Gmail use an App Password
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_FROM
+        sync: false          # a sender address your email provider has verified, e.g. sales@liquidatorusa.com
+      - key: PAYMENT_INSTRUCTIONS
+        sync: false          # printed on invoices, e.g. Zelle: pay@liquidatorusa.com

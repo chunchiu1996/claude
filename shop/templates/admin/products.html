@@ -5,7 +5,8 @@
   <h1>Products</h1>
   <div class="actions">
     <a class="btn" href="{{ url_for('admin.export_products') }}">Export CSV</a>
-    <a class="btn" href="{{ url_for('admin.import_view') }}">Import CSV</a>
+    <a class="btn" href="{{ url_for('admin.import_view') }}">Import spreadsheet</a>
+    <a class="btn" href="{{ url_for('admin.photos_view') }}">Upload photos</a>
     <a class="btn btn-primary" href="{{ url_for('admin.product_new') }}">+ New product</a>
   </div>
 </div>
@@ -15,7 +16,9 @@
     {% for s in suppliers %}<option value="{{ s.id }}" {% if s.id == supplier_id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
   </select>
   <label class="check"><input type="checkbox" name="low" value="1" {% if request.args.get('low') %}checked{% endif %}> Stock ≤ {{ low_stock }}</label>
+  <label class="check"><input type="checkbox" name="nophoto" value="1" {% if request.args.get('nophoto') %}checked{% endif %}> No photo</label>
   <button class="btn btn-sm">Filter</button>
+  <span class="muted small">{{ "{:,}".format(total) }} product{{ "" if total == 1 else "s" }}</span>
 </form>
 <div class="table-wrap">
 <table class="data">
@@ -31,8 +34,15 @@
       <td class="num {% if p.stock_qty <= low_stock %}warn{% endif %}">{{ "{:,}".format(p.stock_qty) }}</td>
       <td>{% if p.active %}<a class="small" href="{{ url_for('store.product', slug=p.slug) }}" target="_blank">view ↗</a>{% endif %}</td>
     </tr>
-  {% else %}<tr><td colspan="7" class="muted">No products yet — add one or import a CSV.</td></tr>{% endfor %}
+  {% else %}<tr><td colspan="7" class="muted">No products found. Add one or import a spreadsheet.</td></tr>{% endfor %}
   </tbody>
 </table>
 </div>
+{% if pages > 1 %}
+<nav class="pager">
+  {% if page > 1 %}<a class="btn btn-sm" href="{{ page_url(page - 1) }}">← Previous</a>{% endif %}
+  <span class="muted small">Page {{ page }} of {{ pages }}</span>
+  {% if page < pages %}<a class="btn btn-sm" href="{{ page_url(page + 1) }}">Next →</a>{% endif %}
+</nav>
+{% endif %}
 {% endblock %}

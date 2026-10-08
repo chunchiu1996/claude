@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Invoice {{ order.number }} · {{ site.name }}</title>
+<style>
+  body { margin: 0; background: #faf5ee; color: #2d231d; font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .sheet { max-width: 760px; margin: 24px auto; background: #fff; border: 1px solid #eadccd; border-radius: 10px; padding: 36px; }
+  .top { display: flex; justify-content: space-between; gap: 24px; flex-wrap: wrap; border-bottom: 3px solid #b5471b; padding-bottom: 16px; }
+  .brand { font-size: 22px; font-weight: 700; color: #b5471b; }
+  .muted { color: #7a6a5e; }
+  h1 { margin: 0; font-size: 26px; letter-spacing: .04em; text-align: right; }
+  .meta { text-align: right; }
+  .cols { display: flex; gap: 24px; flex-wrap: wrap; margin: 20px 0; }
+  .cols > div { flex: 1 1 220px; }
+  h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: #7a6a5e; margin: 0 0 4px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #7a6a5e; border-bottom: 1px solid #eadccd; padding: 8px 6px; }
+  td { padding: 8px 6px; border-bottom: 1px solid #f3eadf; vertical-align: top; }
+  .num { text-align: right; white-space: nowrap; }
+  .sum td { border: 0; padding: 4px 6px; }
+  .total td { font-size: 18px; font-weight: 700; border-top: 2px solid #2d231d; padding-top: 10px; }
+  .status { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; text-transform: uppercase; }
+  .status.due { background: #fcebdc; color: #963a15; }
+  .status.paid { background: #e3f1dc; color: #3f7d2c; }
+  .status.void { background: #eee; color: #666; }
+  .pay { margin-top: 24px; padding: 16px; background: #fcebdc; border-radius: 8px; white-space: pre-line; }
+  .tools { max-width: 760px; margin: 16px auto 0; display: flex; gap: 8px; justify-content: flex-end; }
+  .tools a, .tools button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid #eadccd; background: #fff; color: #2d231d; cursor: pointer; text-decoration: none; }
+  .tools button { background: #b5471b; border-color: #b5471b; color: #fff; }
+  @media print { body { background: #fff; } .sheet { border: 0; margin: 0; padding: 0; } .tools { display: none; } }
+  @media (max-width: 600px) { .sheet { margin: 0; border-radius: 0; padding: 20px; } h1, .meta { text-align: left; } }
+</style>
+</head>
+<body>
+{% if not for_email %}
+<div class="tools">
+  {% if admin_view %}<a href="{{ url_for('admin.order_detail', order_id=order.id) }}">← Back to order</a>
+  {% else %}<a href="{{ url_for('store.order_status', number=order.number, token=order.access_token) }}">← Back to order</a>{% endif %}
+  <button type="button" onclick="window.print()">Print / Save as PDF</button>
+</div>
+{% endif %}
+<div class="sheet">
+  <div class="top">
+    <div>
+      <div class="brand">{{ site.name }}</div>
+      <div class="muted">{{ site.warehouse }}{% if site.phone %}<br>{{ site.phone }}{% endif %}<br>{{ site.email }}</div>
+    </div>
+    <div class="meta">
+      <h1>INVOICE</h1>
+      <div>No. <strong>{{ order.number }}</strong></div>
+      <div class="muted">Date {{ order.created_at[:10] }}</div>
+      {% if order.status == 'cancelled' %}<span class="status void">Cancelled</span>
+      {% elif order.status in ('paid', 'fulfilled') %}<span class="status paid">Paid</span>
+      {% else %}<span class="status due">Payment due</span>{% endif %}
+    </div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <h2>Bill to</h2>
+      <strong>{{ order.customer_name }}</strong>{% if order.company %}<br>{{ order.company }}{% endif %}<br>
+      {{ order.email }}{% if order.phone %}<br>{{ order.phone }}{% endif %}
+    </div>
+    <div>
+      <h2>{{ "Deliver to" if order.fulfillment == 'delivery' else "Pickup" }}</h2>
+      {% if order.fulfillment == 'delivery' %}{{ order.address }}<br>{{ order.city }}, {{ order.state }} {{ order.zip }}
+      {% else %}Warehouse pickup<br>{{ site.warehouse }}{% endif %}
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th>Item</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th></tr></thead>
+    <tbody>
+    {% for i in items %}
+      <tr><td>{{ i.name }}<br><span class="muted">SKU {{ i.sku }}</span></td>
+        <td class="num">{{ "{:,}".format(i.qty) }}{% if i.unit %} {{ i.unit|plural(i.qty) }}{% endif %}</td>
+        <td class="num">{{ i.unit_price_cents|money }}</td><td class="num">{{ i.line_total_cents|money }}</td></tr>
+    {% endfor %}
+    </tbody>
+    <tbody>
+      <tr class="sum"><td colspan="3" class="num">Subtotal</td><td class="num">{{ order.subtotal_cents|money }}</td></tr>
+      <tr class="sum"><td colspan="3" class="num">{{ "Delivery" if order.fulfillment == 'delivery' else "Warehouse pickup" }}</td><td class="num">{{ order.shipping_cents|money }}</td></tr>
+      <tr class="total"><td colspan="3" class="num">{{ "Total paid" if order.status in ('paid', 'fulfilled') else "Total due" }}</td><td class="num">{{ order.total_cents|money }}</td></tr>
+    </tbody>
+  </table>
+
+  {% if order.status == 'pending_payment' %}
+  <div class="pay"><strong>How to pay</strong>
+{{ payment_instructions or "Reply to the invoice email or call us to arrange payment." }}
+Please include invoice no. {{ order.number }} with your payment.</div>
+  {% endif %}
+  {% if for_email and invoice_url %}<p class="muted">View or print this invoice online: <a href="{{ invoice_url }}">{{ invoice_url }}</a></p>{% endif %}
+  <p class="muted">Thank you for your business!</p>
+</div>
+</body>
+</html>

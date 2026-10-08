@@ -9,7 +9,25 @@
 </nav>
 
 <div class="product-layout">
-  <div class="product-media">{{ product_image(p, "large") }}</div>
+  <div class="product-media">
+    {{ product_image(p, "large") }}
+    {% if gallery and p.image_url %}
+    <div class="gallery" aria-label="More photos">
+      {% for url in [p.image_url] + gallery|map(attribute='url')|list %}
+        <button type="button" class="gallery-thumb{% if loop.first %} active{% endif %}" data-src="{{ url }}" aria-label="Photo {{ loop.index }}">
+          <img src="{{ url|thumb }}" alt="" loading="lazy"></button>
+      {% endfor %}
+    </div>
+    <script>
+      document.querySelectorAll('.gallery-thumb').forEach(function (b) {
+        b.addEventListener('click', function () {
+          document.querySelector('.product-media .pimg.large').src = b.dataset.src;
+          document.querySelectorAll('.gallery-thumb').forEach(function (x) { x.classList.toggle('active', x === b); });
+        });
+      });
+    </script>
+    {% endif %}
+  </div>
 
   <div class="product-info">
     <h1>{{ p.name }}</h1>

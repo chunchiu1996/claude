@@ -146,7 +146,9 @@ def test_invoice_order_notifies_staff(app, client, db, monkeypatch):
     client.post("/cart/add", data={"product_id": p["id"], "qty": 2})
     client.post("/checkout", data={"customer_name": "Pat", "email": "pat@example.com", "phone": "555",
                                    "fulfillment": "pickup", "payment_method": "invoice"})
-    assert len(sent) == 1 and "New order" in sent[0][1] and "HDW-BARN-6FT" in sent[0][2]
+    assert [to for to, _, _ in sent] == ["sales@example.com", "pat@example.com"]
+    assert "New order" in sent[0][1] and "HDW-BARN-6FT" in sent[0][2]
+    assert "confirmed" in sent[1][1] and "invoice within one business day" in sent[1][2]
 
 
 def test_old_database_is_migrated(tmp_path):

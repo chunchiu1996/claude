@@ -134,6 +134,10 @@ section { margin-bottom: 36px; }
 .pimg { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: #f1e7dc; }
 .pimg.large { border-radius: var(--radius); }
 .pimg.thumb { width: 72px; border-radius: 6px; }
+.gallery { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .6rem; }
+.gallery-thumb { padding: 0; border: 2px solid transparent; border-radius: 6px; background: none; cursor: pointer; width: 72px; }
+.gallery-thumb img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border-radius: 4px; }
+.gallery-thumb.active, .gallery-thumb:hover { border-color: var(--brand); }
 .ph { display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, hsl(var(--hue) 30% 88%), hsl(var(--hue) 30% 78%)); color: hsl(var(--hue) 35% 28%); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: .8rem; text-align: center; padding: 8px; }
 .pimg.thumb.ph span { font-size: .55rem; }
 .price { font-weight: 800; font-size: 1.1rem; }
@@ -259,3 +263,5 @@ table code, table.data td:first-child { white-space: nowrap; }
 }
 
 .email-preview { width: 100%; height: 640px; border: 1px solid var(--line); border-radius: var(--radius); margin-top: 12px; background: #f6efe7; }
+.ok { color: var(--ok); }
+.pager { align-items: center; }

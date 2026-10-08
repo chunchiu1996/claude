@@ -30,6 +30,9 @@
   </table>
   {% if order.fulfillment == 'pickup' %}<p class="small muted">Pickup at {{ site.warehouse }}. Please bring your order number.</p>
   {% else %}<p class="small muted">Delivering to {{ order.address }}, {{ order.city }}, {{ order.state }} {{ order.zip }}.</p>{% endif %}
-  <a class="btn" href="{{ url_for('store.catalog') }}">Continue shopping</a>
+  <p class="actions">
+    {% if order.status != 'cancelled' %}<a class="btn" href="{{ url_for('store.order_invoice', number=order.number, token=order.access_token) }}">View / print invoice</a>{% endif %}
+    <a class="btn" href="{{ url_for('store.catalog') }}">Continue shopping</a>
+  </p>
 </div>
 {% endblock %}

@@ -65,3 +65,14 @@ def db(app):
 
 def product(db, sku):
     return db.execute("SELECT * FROM products WHERE sku = ?", (sku,)).fetchone()
+
+
+def image_bytes(fmt="PNG", size=(40, 30), color=(181, 71, 27)):
+    """A real little image, as an upload would contain."""
+    import io
+
+    from PIL import Image
+
+    out = io.BytesIO()
+    Image.new("RGB", size, color).save(out, fmt)
+    return out.getvalue()

@@ -14,7 +14,7 @@ from flask import (
 )
 
 from . import inquiries as inq
-from . import notify, orders, payments
+from . import notify, orders, payments, photos
 from .cart import (
     build_lines,
     build_quote_lines,
@@ -112,6 +112,7 @@ def product(slug):
         tiers=get_tiers(db, item["id"]),
         specs=parse_specs(item["specs"]),
         related=related,
+        gallery=photos.gallery(db, item["id"]),
     )
 
 
@@ -301,6 +302,14 @@ def order_status(number, token):
     return render_template("store/order.html", order=order, items=orders.get_items(db, order["id"]))
 
 
+@bp.route("/order/<number>/<token>/invoice")
+def order_invoice(number, token):
+    db = get_db()
+    order = _order_or_404(number, token)
+    return render_template("invoice.html", order=order, items=orders.get_items(db, order["id"]),
+                           payment_instructions=notify.payment_instructions())
+
+
 @bp.route("/order/<number>/<token>/cancel")
 def order_cancel(number, token):
     db = get_db()
@@ -466,3 +475,12 @@ def robots():
 @bp.app_errorhandler(400)
 def bad_request(exc):
     return render_template("store/error.html", code=400, message=exc.description), 400
+
+
+@bp.app_errorhandler(413)
+def too_large(exc):
+    limit = current_app.config["MAX_CONTENT_LENGTH"] // (1024 * 1024)
+    message = f"That upload is too big (the limit is {limit} MB). Split it into smaller files and try again."
+    if request.accept_mimetypes.best == "application/json":
+        return {"error": message}, 413
+    return render_template("store/error.html", code=413, message=message), 413

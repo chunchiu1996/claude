@@ -1,0 +1,48 @@
+{% extends "admin/_layout.html" %}
+{% block admin_title %}Email{% endblock %}
+{% block admin_content %}
+<h1>Email</h1>
+{% if enabled %}
+<p>Email is <strong class="ok">on</strong>. The shop sends:</p>
+{% else %}
+<div class="flash flash-error">Email is <strong>off</strong>: nothing is being sent yet. Set the SMTP settings below in your <code>.env</code> file and restart.</div>
+<p>Once it's on, the shop sends:</p>
+{% endif %}
+<ul>
+  <li>You (<strong>{{ settings.NOTIFY_EMAIL }}</strong>): an alert for every order, quote request and factory application.</li>
+  <li>Customers: an order confirmation, a copy of their quote request, and the invoice when you press <em>Email invoice</em> on an order.</li>
+</ul>
+
+<div class="two-col wide-left">
+  <section class="panel">
+    <h2 class="h3">Current settings</h2>
+    <table class="data small">
+      {% for key, value in settings.items() %}
+        <tr><td><code>{{ key }}</code></td><td>{% if value %}{{ value }}{% else %}<span class="muted">not set</span>{% endif %}</td></tr>
+      {% endfor %}
+    </table>
+    <form method="post" class="filters">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <input type="email" name="to" value="{{ default_to }}" placeholder="you@example.com" required>
+      <button class="btn btn-primary btn-sm">Send test email</button>
+    </form>
+  </section>
+  <aside class="panel">
+    <h2 class="h3">Setting it up</h2>
+    <p class="small">Use any email provider that gives you SMTP settings. Good free options:</p>
+    <table class="data small">
+      <thead><tr><th>Provider</th><th>SMTP_HOST</th><th>Port</th></tr></thead>
+      <tr><td>Brevo (300/day free)</td><td>smtp-relay.brevo.com</td><td>587</td></tr>
+      <tr><td>Resend (100/day free)</td><td>smtp.resend.com</td><td>465</td></tr>
+      <tr><td>Google Workspace / Gmail</td><td>smtp.gmail.com</td><td>587</td></tr>
+      <tr><td>Microsoft 365 / Outlook</td><td>smtp.office365.com</td><td>587</td></tr>
+    </table>
+    <ul class="small">
+      <li><code>SMTP_FROM</code> must be an address your provider has verified, e.g. <code>sales@liquidatorusa.com</code>.</li>
+      <li>Gmail needs an <em>app password</em> (Google account → Security → App passwords), not your normal password.</li>
+      <li>So emails don't land in spam, add the SPF and DKIM records your provider shows you in Cloudflare → DNS.</li>
+      <li>Invoices print the <code>PAYMENT_INSTRUCTIONS</code> setting (Zelle, bank transfer, check…).</li>
+    </ul>
+  </aside>
+</div>
+{% endblock %}

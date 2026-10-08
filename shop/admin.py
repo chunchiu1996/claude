@@ -1,13 +1,14 @@
 import csv
 import io
 import secrets
-from pathlib import Path
 
 from flask import (
     Blueprint,
     Response,
+    abort,
     current_app,
     flash,
+    jsonify,
     redirect,
     render_template,
     request,
@@ -16,7 +17,7 @@ from flask import (
 )
 
 from . import inquiries as inq
-from . import notify, orders, seller
+from . import notify, orders, photos, seller
 from .catalog import (
     PRODUCT_SELECT,
     categories_with_counts,
@@ -35,8 +36,10 @@ from .reports import dashboard_stats, supplier_statement
 
 bp = Blueprint("admin", __name__, url_prefix="/admin")
 
-IMAGE_TYPES = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 LOW_STOCK = 10
+PER_PAGE = 50
+# Password guessing: after this many wrong passwords from one IP, logins from it are refused for a while.
+LOGIN_MAX_FAILURES, LOGIN_WINDOW_MINUTES = 5, 15
 
 
 @bp.before_request
@@ -45,16 +48,39 @@ def require_login():
         return redirect(url_for("admin.login", next=request.path))
 
 
+def _client_ip():
+    header = current_app.config.get("CLIENT_IP_HEADER")
+    return (header and request.headers.get(header, "").strip()) or request.remote_addr or "?"
+
+
+def _recent_failures(db, ip):
+    window = f"-{LOGIN_WINDOW_MINUTES} minutes"
+    db.execute("DELETE FROM login_attempts WHERE created_at < datetime('now', ?)", (window,))
+    return db.execute("SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND created_at >= datetime('now', ?)",
+                      (ip, window)).fetchone()[0]
+
+
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     password = current_app.config.get("ADMIN_PASSWORD")
     if request.method == "POST" and password:
-        if secrets.compare_digest(request.form.get("password", ""), password):
+        db = get_db()
+        ip = _client_ip()
+        if _recent_failures(db, ip) >= LOGIN_MAX_FAILURES:
+            db.commit()
+            flash(f"Too many wrong passwords. Try again in {LOGIN_WINDOW_MINUTES} minutes.", "error")
+            return render_template("admin/login.html", enabled=True), 429
+        if secrets.compare_digest(request.form.get("password", "").encode(), password.encode()):
+            db.execute("DELETE FROM login_attempts WHERE ip = ?", (ip,))
+            db.commit()
             csrf = session.get("_csrf")
             session.clear()
             session.update(admin=True, _csrf=csrf)
             target = request.args.get("next", "")
             return redirect(target if target.startswith("/admin") else url_for("admin.dashboard"))
+        db.execute("INSERT INTO login_attempts (ip) VALUES (?)", (ip,))
+        db.commit()
+        current_app.logger.warning("Wrong admin password from %s", ip)
         flash("Wrong password.", "error")
     return render_template("admin/login.html", enabled=bool(password))
 
@@ -97,11 +123,22 @@ def products():
         params.append(supplier_id)
     if request.args.get("low") == "1":
         where.append(f"p.stock_qty <= {LOW_STOCK}")
+    if request.args.get("nophoto") == "1":
+        where.append("COALESCE(p.image_url, '') = ''")
+    where_sql = " WHERE " + " AND ".join(where)
+    total = db.execute(
+        "SELECT COUNT(*) FROM products p LEFT JOIN categories c ON c.id = p.category_id" + where_sql, params
+    ).fetchone()[0]
+    pages = max((total + PER_PAGE - 1) // PER_PAGE, 1)
+    page = min(max(request.args.get("page", 1, type=int), 1), pages)
     rows = db.execute(
-        PRODUCT_SELECT + " WHERE " + " AND ".join(where) + " ORDER BY p.active DESC, c.sort_order, p.name", params
+        PRODUCT_SELECT + where_sql + " ORDER BY p.active DESC, c.sort_order, p.name LIMIT ? OFFSET ?",
+        [*params, PER_PAGE, (page - 1) * PER_PAGE],
     ).fetchall()
     return render_template(
-        "admin/products.html", products=rows, q=q, supplier_id=supplier_id, suppliers=_suppliers(db), low_stock=LOW_STOCK
+        "admin/products.html", products=rows, q=q, supplier_id=supplier_id, suppliers=_suppliers(db),
+        low_stock=LOW_STOCK, total=total, page=page, pages=pages,
+        page_url=lambda n: url_for("admin.products", **{**request.args.to_dict(), "page": n}),
     )
 
 
@@ -165,23 +202,36 @@ def _parse_product_form(db, form, product_id=None):
     else:
         data["category_id"] = form.get("category_id", type=int)
 
-    upload = request.files.get("image")
-    if upload and upload.filename:
-        ext = Path(upload.filename).suffix.lower()
-        if ext not in IMAGE_TYPES or not _looks_like_image(upload.stream.read(16)):
-            errors["image"] = "Upload a JPG, PNG, WEBP or GIF image."
-        upload.stream.seek(0)
-        if not errors:
-            name = secrets.token_hex(8) + ext
-            upload.save(Path(current_app.config["UPLOAD_FOLDER"]) / name)
-            data["image_url"] = url_for("store.media", filename=name)
+    if data["image_url"] and not data["image_url"].startswith(("https://", "http://", "/media/")):
+        errors["image_url"] = "Use a full web address starting with https://"
     return data, tiers, errors
 
 
-def _looks_like_image(head):
-    """Check the file's first bytes, not just its name."""
-    return (head.startswith((b"\x89PNG\r\n\x1a\n", b"\xff\xd8\xff", b"GIF87a", b"GIF89a"))
-            or (head[:4] == b"RIFF" and head[8:12] == b"WEBP"))
+def _save_uploads(errors):
+    """Main photo + extra gallery photos from the product form. Only called once the form is valid."""
+    saved = {"main": None, "extra": []}
+    main = request.files.get("image")
+    try:
+        if main and main.filename:
+            saved["main"] = photos.save_image(main.read())
+        for upload in request.files.getlist("extra_images"):
+            if upload and upload.filename:
+                saved["extra"].append(photos.save_image(upload.read()))
+    except ValueError as exc:
+        errors["image"] = str(exc)
+        for url in [saved["main"], *saved["extra"]]:
+            photos.delete_media(url)
+    return saved
+
+
+def _store_uploads(db, product_id, saved):
+    if saved["main"]:
+        photos.set_photo(db, product_id, 1, saved["main"])
+    if saved["extra"]:
+        start = (db.execute("SELECT MAX(position) FROM product_images WHERE product_id = ?",
+                            (product_id,)).fetchone()[0] or 1) + 1
+        for position, url in enumerate(saved["extra"], start=start):
+            photos.set_photo(db, product_id, position, url)
 
 
 def _product_form_context(db):
@@ -202,13 +252,15 @@ def product_new():
                 raise ValueError
         except ValueError:
             errors["initial_stock"] = "Must be a whole number of 0 or more."
+        saved = _save_uploads(errors) if not errors else None
         if not errors:
-            data["slug"] = unique_slug(db, "products", slugify(data["name"]))
+            data["slug"] = unique_slug(db, "products", slugify(data["name"]), alt=slugify(data["sku"]))
             cols = ", ".join(data)
             product_id = db.execute(
                 f"INSERT INTO products ({cols}) VALUES ({', '.join('?' for _ in data)})", list(data.values())
             ).lastrowid
             set_tiers(db, product_id, tiers)
+            _store_uploads(db, product_id, saved)
             if initial_stock:
                 record_movement(db, product_id, initial_stock, "receive", request.form.get("reference", "").strip(),
                                 "Initial stock")
@@ -230,17 +282,25 @@ def product_edit(product_id):
     if request.method == "POST":
         form = request.form.to_dict()
         data, tiers, errors = _parse_product_form(db, request.form, product_id)
+        saved = _save_uploads(errors) if not errors else None
         if not errors:
-            if not data["image_url"] and product["image_url"] and not request.form.get("remove_image"):
-                data["image_url"] = product["image_url"]
+            old_image = product["image_url"]
+            if not data["image_url"] and old_image and not request.form.get("remove_image"):
+                data["image_url"] = old_image
             if data["name"] != product["name"]:
-                data["slug"] = unique_slug(db, "products", slugify(data["name"]), exclude_id=product_id)
+                data["slug"] = unique_slug(db, "products", slugify(data["name"]), exclude_id=product_id,
+                                          alt=slugify(data["sku"]))
             assignments = ", ".join(f"{col} = ?" for col in data)
             db.execute(
                 f"UPDATE products SET {assignments}, updated_at = datetime('now') WHERE id = ?",
                 [*data.values(), product_id],
             )
+            if old_image != data["image_url"]:
+                photos.delete_media(old_image)
+            for position in request.form.getlist("remove_photo", type=int):
+                photos.remove_photo(db, product_id, position)
             set_tiers(db, product_id, tiers)
+            _store_uploads(db, product_id, saved)
             db.commit()
             flash("Saved.", "success")
             return redirect(url_for("admin.product_edit", product_id=product_id))
@@ -250,7 +310,7 @@ def product_edit(product_id):
     ).fetchall()
     return render_template(
         "admin/product_form.html", form=form, errors=errors, product=product, movements=movements,
-        **_product_form_context(db)
+        gallery=photos.gallery(db, product_id), **_product_form_context(db)
     )
 
 
@@ -281,24 +341,66 @@ def product_stock(product_id):
 
 @bp.route("/import", methods=["GET", "POST"])
 def import_view():
-    result = None
+    result, picture_results = None, []
     if request.method == "POST":
         upload = request.files.get("file")
         if not upload or not upload.filename:
-            flash("Choose a CSV file to upload.", "error")
+            flash("Choose an Excel or CSV file to upload.", "error")
         else:
+            raw = upload.read()
             try:
-                rows = read_upload(upload.filename, upload.read())
+                rows = read_upload(upload.filename, raw)
             except ValueError as exc:
                 flash(str(exc), "error")
             else:
+                db = get_db()
                 result = import_rows(
-                    get_db(),
+                    db,
                     rows,
                     reference=request.form.get("reference", "").strip() or None,
                     stock_mode="set" if request.form.get("stock_mode") == "set" else "add",
                 )
-    return render_template("admin/import.html", result=result, columns=COLUMNS)
+                if result.ok and upload.filename.lower().endswith((".xlsx", ".xlsm")):
+                    picture_results = photos.excel_photos(db, raw, rows)
+    return render_template("admin/import.html", result=result, columns=COLUMNS, pictures=picture_results)
+
+
+# ---------------------------------------------------------------- photos
+
+
+@bp.route("/photos")
+def photos_view():
+    db = get_db()
+    missing = db.execute(
+        "SELECT id, sku, name FROM products WHERE active = 1 AND COALESCE(image_url, '') = '' ORDER BY sku"
+    ).fetchall()
+    total = db.execute("SELECT COUNT(*) FROM products WHERE active = 1").fetchone()[0]
+    return render_template("admin/photos.html", missing=missing[:200], missing_count=len(missing), total=total,
+                           max_mb=current_app.config["MAX_CONTENT_LENGTH"] // (1024 * 1024))
+
+
+@bp.post("/photos/upload")
+def photos_upload():
+    """Bulk photo upload. The page sends one file per request (so big folders never hit size limits);
+    a .zip of photos works too. Each photo goes to the product whose SKU matches its file name."""
+    db = get_db()
+    results = []
+    for upload in request.files.getlist("files"):
+        if not upload or not upload.filename:
+            continue
+        raw = upload.read()
+        if upload.filename.lower().endswith(".zip"):
+            results += photos.attach_zip(db, raw)
+        else:
+            results.append(photos.attach_file(db, upload.filename, raw))
+    if request.accept_mimetypes.best == "application/json" or request.form.get("format") == "json":
+        return jsonify(results=results)
+    ok = sum(r["status"] == "ok" for r in results)
+    flash(f"{ok} of {len(results)} photos saved.", "success" if ok == len(results) else "error")
+    for r in results:
+        if r["status"] != "ok":
+            flash(f"{r['file']}: {r['message']}", "error")
+    return redirect(url_for("admin.photos_view"))
 
 
 @bp.route("/import/template.csv")
@@ -400,8 +502,66 @@ def order_detail(order_id):
                 flash(str(exc), "error")
         return redirect(url_for("admin.order_detail", order_id=order_id))
     return render_template(
-        "admin/order_detail.html", order=order, items=orders.get_items(db, order_id), statuses=orders.STATUSES
+        "admin/order_detail.html", order=order, items=orders.get_items(db, order_id), statuses=orders.STATUSES,
+        email_ready=notify.email_enabled(),
     )
+
+
+@bp.route("/orders/<int:order_id>/invoice")
+def order_invoice(order_id):
+    db = get_db()
+    order = orders.get_order(db, order_id)
+    if order is None:
+        abort(404)
+    return render_template("invoice.html", order=order, items=orders.get_items(db, order_id),
+                           payment_instructions=current_app.config["PAYMENT_INSTRUCTIONS"], admin_view=True)
+
+
+@bp.post("/orders/<int:order_id>/email-invoice")
+def order_email_invoice(order_id):
+    db = get_db()
+    order = orders.get_order(db, order_id)
+    if order is None:
+        abort(404)
+    error = notify.send_invoice(order, orders.get_items(db, order_id))
+    if error:
+        flash(f"Invoice not sent: {error}", "error")
+    else:
+        db.execute("UPDATE orders SET invoice_sent_at = datetime('now') WHERE id = ?", (order_id,))
+        db.commit()
+        flash(f"Invoice emailed to {order['email']}.", "success")
+    return redirect(url_for("admin.order_detail", order_id=order_id))
+
+
+# ---------------------------------------------------------------- email settings
+
+
+@bp.route("/email", methods=["GET", "POST"])
+def email_settings():
+    cfg = current_app.config
+    if request.method == "POST":
+        to = request.form.get("to", "").strip()
+        if "@" not in to:
+            flash("Enter the address to send the test email to.", "error")
+        else:
+            error = notify.send_test(to)
+            if error:
+                flash(f"Test email failed: {error}", "error")
+            else:
+                flash(f"Test email sent to {to}. Check the inbox (and spam folder).", "success")
+        return redirect(url_for("admin.email_settings"))
+    settings = {
+        "SMTP_HOST": cfg.get("SMTP_HOST") or "",
+        "SMTP_PORT": cfg.get("SMTP_PORT"),
+        "SMTP_USER": cfg.get("SMTP_USER") or "",
+        "SMTP_PASSWORD": "set" if cfg.get("SMTP_PASSWORD") else "",
+        "SMTP_FROM": notify.from_address(),
+        "NOTIFY_EMAIL": notify.admin_address(),
+        "CONTACT_EMAIL": cfg.get("CONTACT_EMAIL"),
+        "PAYMENT_INSTRUCTIONS": cfg.get("PAYMENT_INSTRUCTIONS") or "",
+    }
+    return render_template("admin/email.html", settings=settings, enabled=notify.email_enabled(),
+                           default_to=notify.admin_address())
 
 
 # ---------------------------------------------------------------- inquiries

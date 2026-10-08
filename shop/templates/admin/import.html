@@ -4,10 +4,10 @@
 <h1>Import products &amp; stock from a spreadsheet</h1>
 <p class="muted">Send factories the Excel template. When their shipment arrives, upload the filled-in file here.</p>
 <div class="two-col wide-left">
-  <form method="post" enctype="multipart/form-data" class="form-card">
+  <form method="post" enctype="multipart/form-data" class="form-card" onsubmit="this.querySelector('button').disabled = true; this.querySelector('button').textContent = 'Importing… (large files can take a minute)';">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-    <label class="field"><span>Excel (.xlsx) or CSV file</span>
-      <input type="file" name="file" accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required></label>
+    <label class="field"><span>Excel (.xlsx, .xls), OpenOffice (.ods) or CSV file</span>
+      <input type="file" name="file" accept=".xlsx,.xlsm,.xls,.ods,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" required></label>
     <label class="field"><span>Shipment / container reference</span><input name="reference" placeholder="e.g. MSKU1234567 – arrived 2026-10-02"></label>
     <fieldset class="field">
       <span>The <strong>Quantity 数量</strong> column means…</span>
@@ -30,6 +30,9 @@
       <li>New categories and factories are created automatically by name.</li>
       <li><strong>Quote only = yes</strong> hides the price (price can be blank).</li>
       <li>If any row has an error, <strong>nothing</strong> is imported. Fix the file and upload it again.</li>
+      <li><strong>Photos pasted into the Excel file</strong> are attached to the product on the same row.
+        Or upload photos named by SKU on the <a href="{{ url_for('admin.photos_view') }}">Photos</a> page.</li>
+      <li>Large lists are fine: tested with 20,000 rows in one file. Files up to {{ config.MAX_CONTENT_LENGTH // 1048576 }} MB.</li>
     </ul>
     <p class="small muted">Columns: {{ columns|join(", ") }}</p>
   </aside>
@@ -38,6 +41,15 @@
 {% if result %}
   {% if result.ok %}
     <div class="flash flash-success">Imported: {{ result.created }} new, {{ result.updated }} updated{% if result.units_received %}, {{ "{:,}".format(result.units_received) }} units received{% endif %}.</div>
+    {% if pictures %}
+    {% set saved = pictures|selectattr('status', 'equalto', 'ok')|list %}
+    <div class="flash flash-{{ 'success' if saved|length == pictures|length else 'message' }}">Photos from the spreadsheet: {{ saved|length }} of {{ pictures|length }} saved.</div>
+    {% if saved|length < pictures|length %}
+    <table class="data"><thead><tr><th>Picture</th><th>SKU</th><th>Problem</th></tr></thead>
+      {% for r in pictures if r.status != 'ok' %}<tr><td>{{ r.file }}</td><td>{{ r.sku or "" }}</td><td>{{ r.message }}</td></tr>{% endfor %}
+    </table>
+    {% endif %}
+    {% endif %}
     {% if result.warnings %}
     <div class="flash flash-message">Imported, but please check these rows:</div>
     <table class="data"><thead><tr><th>Row</th><th>Note</th></tr></thead>
