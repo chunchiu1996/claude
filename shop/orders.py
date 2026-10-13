@@ -2,6 +2,8 @@
 import secrets
 from datetime import datetime, timezone
 
+from .db import atomic
+
 STATUSES = {
     "pending_payment": "Awaiting payment",
     "paid": "Paid – to fulfill",
@@ -29,7 +31,8 @@ def place_order(db, customer, lines, shipping_cents, payment_method):
     """Atomically reserve stock and create the order. Returns the new order row."""
     subtotal = sum(line["line_total_cents"] for line in lines)
     number = _new_number(db)
-    try:
+
+    def work():
         for line in lines:
             product = line["product"]
             cur = db.execute(
@@ -90,11 +93,9 @@ def place_order(db, customer, lines, shipping_cents, payment_method):
                 "INSERT INTO stock_movements (product_id, qty_change, kind, reference) VALUES (?, ?, 'sale', ?)",
                 (product["id"], -line["qty"], f"Order {number}"),
             )
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-    return get_order(db, order_id)
+        return order_id
+
+    return get_order(db, atomic(db, work))
 
 
 def get_order(db, order_id):
@@ -110,21 +111,24 @@ def cancel_order(db, order_id, reason=None):
     order = get_order(db, order_id)
     if order is None or order["status"] == "cancelled":
         return False
-    for item in get_items(db, order_id):
-        if item["product_id"] is None:
-            continue
+
+    def work():
+        for item in get_items(db, order_id):
+            if item["product_id"] is None:
+                continue
+            db.execute(
+                "UPDATE products SET stock_qty = stock_qty + ?, updated_at = datetime('now') WHERE id = ?",
+                (item["qty"], item["product_id"]),
+            )
+            db.execute(
+                "INSERT INTO stock_movements (product_id, qty_change, kind, reference, note) VALUES (?, ?, 'cancel', ?, ?)",
+                (item["product_id"], item["qty"], f"Order {order['number']}", reason),
+            )
         db.execute(
-            "UPDATE products SET stock_qty = stock_qty + ?, updated_at = datetime('now') WHERE id = ?",
-            (item["qty"], item["product_id"]),
+            "UPDATE orders SET status = 'cancelled', updated_at = datetime('now') WHERE id = ?", (order_id,)
         )
-        db.execute(
-            "INSERT INTO stock_movements (product_id, qty_change, kind, reference, note) VALUES (?, ?, 'cancel', ?, ?)",
-            (item["product_id"], item["qty"], f"Order {order['number']}", reason),
-        )
-    db.execute(
-        "UPDATE orders SET status = 'cancelled', updated_at = datetime('now') WHERE id = ?", (order_id,)
-    )
-    db.commit()
+
+    atomic(db, work)
     return True
 
 

@@ -10,16 +10,18 @@ import re
 import secrets
 import zipfile
 import zlib
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 
 from flask import current_app
 
+from . import cloud, media
 from .importer import find_header, pick_sheet
 
 MAX_SIDE, THUMB_SIDE = 1600, 600
 MAX_IMAGE_BYTES = 30 * 1024 * 1024
 MAX_ZIP_FILES, MAX_ZIP_TOTAL = 1000, 1024 * 1024 * 1024  # zip bombs; and stays under Cloudflare's 100 s
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".bmp", ".tif", ".tiff", ".heic", ".heif"}
+_GENERATED = re.compile(r"^[0-9a-f]{16}-sm\.jpg$")
 _SUFFIX = re.compile(r"^(?P<sku>.+?)(?:[\s_\-]+\(?(?P<n>\d{1,2})\)?|\s*\((?P<p>\d{1,2})\))$")
 
 
@@ -35,6 +37,9 @@ def save_image(raw):
         raise ValueError("Image is larger than 30 MB")
     try:
         img = Image.open(io.BytesIO(raw))
+        scale = MAX_SIDE / max(img.size)
+        if img.format == "JPEG" and scale < 1:  # decode big phone photos at reduced size: much less memory
+            img.draft("RGB", (int(img.width * scale), int(img.height * scale)))
         img.load()
         img = ImageOps.exif_transpose(img)
         if img.mode in ("RGBA", "LA", "P", "PA"):
@@ -48,14 +53,18 @@ def save_image(raw):
         raise ValueError("Image is too large (too many pixels)") from exc
     except (UnidentifiedImageError, OSError, ValueError, SyntaxError, EOFError) as exc:  # Pillow's ways of failing
         raise ValueError("Not an image we can read. Use JPG, PNG, WEBP or HEIC") from exc
-    folder = Path(current_app.config["UPLOAD_FOLDER"])
     name = secrets.token_hex(8)
-    large = img.copy()
-    large.thumbnail((MAX_SIDE, MAX_SIDE))
-    large.save(folder / f"{name}.jpg", "JPEG", quality=85, optimize=True, progressive=True)
+    img.thumbnail((MAX_SIDE, MAX_SIDE))
+    media.put(f"{name}.jpg", _jpeg(img, 85))
     img.thumbnail((THUMB_SIDE, THUMB_SIDE))
-    img.save(folder / f"{name}-sm.jpg", "JPEG", quality=80, optimize=True, progressive=True)
+    media.put(f"{name}-sm.jpg", _jpeg(img, 80))
     return f"/media/{name}.jpg"
+
+
+def _jpeg(img, quality):
+    out = io.BytesIO()
+    img.save(out, "JPEG", quality=quality, optimize=True, progressive=True)
+    return out.getvalue()
 
 
 def _enable_heic():
@@ -78,18 +87,22 @@ def thumb_url(url):
     """Smaller version for product cards, when we made one."""
     if url and url.startswith("/media/") and url.endswith(".jpg") and not url.endswith("-sm.jpg"):
         small = url[:-4] + "-sm.jpg"
-        if (Path(current_app.config["UPLOAD_FOLDER"]) / small.rsplit("/", 1)[-1]).exists():
+        name = small.rsplit("/", 1)[-1]
+        # On Cloudflare every uploaded photo goes through save_image, so its small version exists.
+        if (cloud.ON_WORKERS and _GENERATED.match(name)) or (not cloud.ON_WORKERS and media.exists(name)):
             return small
     return url
 
 
 def delete_media(url):
     if url and url.startswith("/media/"):
-        folder = Path(current_app.config["UPLOAD_FOLDER"])
         name = url.rsplit("/", 1)[-1]
         for candidate in (name, name[:-4] + "-sm.jpg" if name.endswith(".jpg") else None):
-            if candidate and "/" not in candidate and (folder / candidate).is_file():
-                (folder / candidate).unlink()
+            if candidate:
+                try:
+                    media.delete(candidate)
+                except ValueError:
+                    pass
 
 
 def set_photo(db, product_id, position, url):

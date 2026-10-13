@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from shop import create_app
@@ -5,6 +7,39 @@ from shop.db import get_db
 from shop.seed import seed_demo
 
 CSRF = "test-csrf-token"
+ON_FAKE_DURABLE_OBJECT = os.environ.get("SHOP_TEST_DB") == "durable-object"
+
+
+@pytest.fixture(autouse=True)
+def durable_object_storage(monkeypatch):
+    """With SHOP_TEST_DB=durable-object, every test runs on the Cloudflare database adapter."""
+    if not ON_FAKE_DURABLE_OBJECT:
+        yield
+        return
+    from flask import current_app
+
+    from shop import cloud
+    from shop import db as shop_db
+
+    from .fake_durable_object import FakeStorage
+
+    storages = {}
+    original_connect = shop_db.connect
+
+    def connect():
+        if cloud.ON_WORKERS:  # the simulated-Cloudflare tests bring their own storage
+            return original_connect()
+        path = current_app.config["DATABASE"]
+        if path not in storages:
+            storages[path] = FakeStorage(path)
+        return shop_db.DurableObjectDB(storages[path])
+
+    monkeypatch.setattr(shop_db, "connect", connect)
+    monkeypatch.setattr(shop_db, "_js_null", lambda: None)
+    monkeypatch.setattr(shop_db, "_js_callable", lambda fn: (fn, lambda: None))
+    yield
+    for storage in storages.values():
+        storage.sql.conn.close()
 
 
 @pytest.fixture

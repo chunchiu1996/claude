@@ -1,9 +1,11 @@
 import io
 
+import pytest
+
 from shop import orders
 from shop.importer import decode, import_products
 
-from .conftest import Client, product
+from .conftest import ON_FAKE_DURABLE_OBJECT, Client, product
 
 
 def test_admin_requires_login(client):
@@ -162,6 +164,7 @@ def test_categories_admin(admin, db):
     assert row["slug"] == "outdoor" and row["sort_order"] == 5
 
 
+@pytest.mark.skipif(ON_FAKE_DURABLE_OBJECT, reason="Docker-only command; Cloudflare backs up the database itself")
 def test_backup_command_snapshots_database(app, tmp_path):
     import sqlite3
 

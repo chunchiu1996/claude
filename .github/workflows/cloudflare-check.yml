@@ -1,0 +1,36 @@
+# Runs the shop on Cloudflare's real Workers runtime (locally on GitHub's machine, no Cloudflare
+# account needed) and puts it through deploy/smoke_test.py: pages, admin, photos, Excel import,
+# checkout, email and invoice. If this is green, the Cloudflare version works.
+name: Cloudflare runtime check
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  workers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: astral-sh/setup-uv@v6
+      - name: Start the shop on the Workers runtime
+        run: |
+          printf 'ADMIN_PASSWORD=smoke-pw\nSECRET_KEY=ci-only-not-secret\n' > .dev.vars
+          uv run pywrangler dev --ip 127.0.0.1 --port 8787 --local-protocol https > wrangler.log 2>&1 &
+          for i in $(seq 1 150); do
+            curl -sk -o /dev/null https://127.0.0.1:8787/healthz && break
+            sleep 2
+          done
+          curl -sk https://127.0.0.1:8787/healthz || (tail -100 wrangler.log; exit 1)
+      - name: Smoke test
+        run: |
+          uv venv .venv-smoke --python 3.12
+          uv pip install --python .venv-smoke pillow openpyxl
+          .venv-smoke/bin/python deploy/smoke_test.py https://127.0.0.1:8787 --password smoke-pw --insecure --rows 20000
+      - name: Runtime log
+        if: always()
+        run: tail -300 wrangler.log

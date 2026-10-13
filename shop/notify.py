@@ -9,6 +9,7 @@ from email.utils import formataddr, formatdate, make_msgid
 
 from flask import current_app, render_template, url_for
 
+from . import cloud
 from .inquiries import CONTACT_PREFS, item_line
 from .pricing import fmt_money
 
@@ -44,7 +45,19 @@ def mailto_link(address, subject, body):
 
 
 def email_enabled():
-    return bool(current_app.config.get("SMTP_HOST"))
+    return bool(current_app.config.get("SMTP_HOST")) or _cloudflare_email() is not None
+
+
+def email_provider():
+    if current_app.config.get("SMTP_HOST"):
+        return f"SMTP ({current_app.config['SMTP_HOST']})"
+    if _cloudflare_email() is not None:
+        return "Cloudflare Email Service"
+    return None
+
+
+def _cloudflare_email():
+    return cloud.binding("EMAIL") if cloud.ON_WORKERS else None
 
 
 def from_address():
@@ -75,10 +88,12 @@ def _message(to, subject, body, reply_to=None, html=None):
 def deliver(to, subject, body, reply_to=None, html=None):
     """Send now. Returns None when sent, or a short explanation of what went wrong."""
     cfg = current_app.config
-    if not cfg.get("SMTP_HOST"):
-        return "Email is not set up yet (SMTP_HOST is empty). See the Email page in admin."
     if not to:
         return "No email address to send to."
+    if not cfg.get("SMTP_HOST") and _cloudflare_email() is not None:
+        return _deliver_cloudflare(to, subject, body, reply_to, html)
+    if not cfg.get("SMTP_HOST"):
+        return "Email is not set up yet (SMTP_HOST is empty). See the Email page in admin."
     host, port = cfg["SMTP_HOST"], int(cfg.get("SMTP_PORT") or 587)
     msg = _message(to, subject, body, reply_to, html)
     try:
@@ -105,12 +120,31 @@ def deliver(to, subject, body, reply_to=None, html=None):
     return error
 
 
+def _deliver_cloudflare(to, subject, body, reply_to=None, html=None):
+    message = {"to": to, "from": {"email": from_address(), "name": current_app.config["SITE_NAME"]},
+               "subject": subject, "text": body}
+    if html:
+        message["html"] = html
+    if reply_to:
+        message["replyTo"] = reply_to
+    try:
+        cloud.wait(_cloudflare_email().send(cloud.js_object(message)))
+        return None
+    except Exception as exc:  # the binding throws a JavaScript Error with a code such as E_SENDER_NOT_VERIFIED
+        error = f"Cloudflare Email Service didn't send it: {exc}"
+        if "SENDER_NOT_VERIFIED" in str(exc) or "not verified" in str(exc).lower():
+            error = (f"Cloudflare won't send from {from_address()} yet. Add your domain under Email → Email "
+                     "Sending in the Cloudflare dashboard, and use an address on that domain (SMTP_FROM).")
+    current_app.logger.error("Email %r to %s failed: %s", subject, to, error)
+    return error
+
+
 def send_email(to, subject, body, reply_to=None):
     """Send a notification. Returns False if email isn't set up. Outside tests the email is sent in the
     background, so customers never wait on a slow mail server."""
     if not email_enabled() or not to:
         return False
-    if current_app.testing:
+    if current_app.testing or cloud.ON_WORKERS:  # (Workers can't run background threads; sending is quick)
         return deliver(to, subject, body, reply_to) is None
     app = current_app._get_current_object()
 
@@ -126,7 +160,7 @@ def send_test(to):
     site = site_info()
     body = (f"This is a test email from {site['name']}.\n\n"
             f"If you can read this, order confirmations, invoices and quote-request alerts will be delivered.\n\n"
-            f"Sent from: {from_address()}\nAlerts go to: {admin_address()}\n")
+            f"Sent from: {from_address()} via {email_provider()}\nAlerts go to: {admin_address()}\n")
     return deliver(to, f"Test email from {site['name']}", body)
 
 

@@ -14,7 +14,8 @@ from flask import (
 )
 
 from . import inquiries as inq
-from . import notify, orders, payments, photos
+from . import cloud, notify, orders, payments, photos
+from . import media as media_store
 from .cart import (
     build_lines,
     build_quote_lines,
@@ -438,7 +439,16 @@ def healthz():
 
 @bp.route("/media/<path:filename>")
 def media(filename):
-    return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename, max_age=86400 * 30)
+    if not cloud.ON_WORKERS:
+        return send_from_directory(current_app.config["UPLOAD_FOLDER"], filename, max_age=86400 * 30)
+    try:
+        found = media_store.get(filename)
+    except ValueError:
+        found = None
+    if found is None:
+        abort(404)
+    raw, content_type = found
+    return raw, 200, {"Content-Type": content_type, "Cache-Control": "public, max-age=31536000, immutable"}
 
 
 def _absolute(url):

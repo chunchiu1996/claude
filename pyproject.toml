@@ -1,0 +1,19 @@
+# Used for the Cloudflare Workers build (uv run pywrangler deploy). Docker uses requirements.txt.
+[project]
+name = "liquidatorusa"
+version = "1.0.0"
+requires-python = ">=3.12"
+dependencies = [
+    "flask>=3.0,<4",
+    "openpyxl>=3.1",
+    "pillow>=10",
+]
+
+[dependency-groups]
+dev = [
+    "workers-py",
+    "workers-runtime-sdk",
+]
+
+[tool.uv]
+package = false

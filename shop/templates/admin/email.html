@@ -5,7 +5,12 @@
 {% if enabled %}
 <p>Email is <strong class="ok">on</strong>. The shop sends:</p>
 {% else %}
+{% if on_workers %}
+<div class="flash flash-error">Email is <strong>off</strong>: nothing is being sent yet. In Cloudflare, add your domain under
+  <strong>Email → Email Sending</strong>, then redeploy (the <code>EMAIL</code> binding is in <code>wrangler.jsonc</code>).</div>
+{% else %}
 <div class="flash flash-error">Email is <strong>off</strong>: nothing is being sent yet. Set the SMTP settings below in your <code>.env</code> file and restart.</div>
+{% endif %}
 <p>Once it's on, the shop sends:</p>
 {% endif %}
 <ul>
@@ -28,6 +33,15 @@
     </form>
   </section>
   <aside class="panel">
+    {% if on_workers %}
+    <h2 class="h3">Setting it up on Cloudflare</h2>
+    <ul class="small">
+      <li>Cloudflare dashboard → <strong>Email</strong> → <strong>Email Sending</strong> → add <code>liquidatorusa.com</code>. Cloudflare adds the DNS records (SPF, DKIM) for you.</li>
+      <li><code>SMTP_FROM</code> must be an address on that domain, e.g. <code>sales@liquidatorusa.com</code>. Set it under the Worker's <em>Settings → Variables</em>.</li>
+      <li>The Workers Paid plan includes 3,000 emails a month, then $0.35 per 1,000.</li>
+      <li>Invoices print the <code>PAYMENT_INSTRUCTIONS</code> setting (Zelle, bank transfer, check…).</li>
+    </ul>
+    {% else %}
     <h2 class="h3">Setting it up</h2>
     <p class="small">Use any email provider that gives you SMTP settings. Good free options:</p>
     <table class="data small">
@@ -43,6 +57,7 @@
       <li>So emails don't land in spam, add the SPF and DKIM records your provider shows you in Cloudflare → DNS.</li>
       <li>Invoices print the <code>PAYMENT_INSTRUCTIONS</code> setting (Zelle, bank transfer, check…).</li>
     </ul>
+    {% endif %}
   </aside>
 </div>
 {% endblock %}

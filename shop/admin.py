@@ -17,7 +17,7 @@ from flask import (
 )
 
 from . import inquiries as inq
-from . import notify, orders, photos, seller
+from . import cloud, notify, orders, photos, seller
 from .catalog import (
     PRODUCT_SELECT,
     categories_with_counts,
@@ -197,14 +197,18 @@ def _parse_product_form(db, form, product_id=None):
     data["active"] = 1 if form.get("active") else 0
     data["featured"] = 1 if form.get("featured") else 0
     data["supplier_id"] = form.get("supplier_id", type=int)
-    if form.get("new_category", "").strip():
-        data["category_id"] = get_or_create_category(db, form["new_category"])
-    else:
-        data["category_id"] = form.get("category_id", type=int)
+    data["category_id"] = form.get("category_id", type=int)
 
     if data["image_url"] and not data["image_url"].startswith(("https://", "http://", "/media/")):
         errors["image_url"] = "Use a full web address starting with https://"
     return data, tiers, errors
+
+
+def _new_category(db, data):
+    """'…or new category' on the product form: created only once the rest of the form is valid."""
+    name = request.form.get("new_category", "").strip()
+    if name:
+        data["category_id"] = get_or_create_category(db, name)
 
 
 def _save_uploads(errors):
@@ -254,6 +258,7 @@ def product_new():
             errors["initial_stock"] = "Must be a whole number of 0 or more."
         saved = _save_uploads(errors) if not errors else None
         if not errors:
+            _new_category(db, data)
             data["slug"] = unique_slug(db, "products", slugify(data["name"]), alt=slugify(data["sku"]))
             cols = ", ".join(data)
             product_id = db.execute(
@@ -267,7 +272,6 @@ def product_new():
             db.commit()
             flash(f"Created {data['name']}.", "success")
             return redirect(url_for("admin.product_edit", product_id=product_id))
-        db.rollback()
     return render_template("admin/product_form.html", form=form, errors=errors, product=None, **_product_form_context(db))
 
 
@@ -284,6 +288,7 @@ def product_edit(product_id):
         data, tiers, errors = _parse_product_form(db, request.form, product_id)
         saved = _save_uploads(errors) if not errors else None
         if not errors:
+            _new_category(db, data)
             old_image = product["image_url"]
             if not data["image_url"] and old_image and not request.form.get("remove_image"):
                 data["image_url"] = old_image
@@ -304,7 +309,6 @@ def product_edit(product_id):
             db.commit()
             flash("Saved.", "success")
             return redirect(url_for("admin.product_edit", product_id=product_id))
-        db.rollback()
     movements = db.execute(
         "SELECT * FROM stock_movements WHERE product_id = ? ORDER BY created_at DESC, id DESC LIMIT 30", (product_id,)
     ).fetchall()
@@ -334,7 +338,6 @@ def product_stock(product_id):
         db.commit()
         flash(f"Stock updated ({qty:+d}).", "success")
     except ValueError as exc:
-        db.rollback()
         flash(str(exc), "error")
     return redirect(url_for("admin.product_edit", product_id=product_id) + "#stock")
 
@@ -551,6 +554,7 @@ def email_settings():
                 flash(f"Test email sent to {to}. Check the inbox (and spam folder).", "success")
         return redirect(url_for("admin.email_settings"))
     settings = {
+        "Sending with": notify.email_provider() or "",
         "SMTP_HOST": cfg.get("SMTP_HOST") or "",
         "SMTP_PORT": cfg.get("SMTP_PORT"),
         "SMTP_USER": cfg.get("SMTP_USER") or "",
@@ -560,8 +564,11 @@ def email_settings():
         "CONTACT_EMAIL": cfg.get("CONTACT_EMAIL"),
         "PAYMENT_INSTRUCTIONS": cfg.get("PAYMENT_INSTRUCTIONS") or "",
     }
+    if cloud.ON_WORKERS and not cfg.get("SMTP_HOST"):
+        for key in ("SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASSWORD"):
+            settings.pop(key)
     return render_template("admin/email.html", settings=settings, enabled=notify.email_enabled(),
-                           default_to=notify.admin_address())
+                           default_to=notify.admin_address(), on_workers=cloud.ON_WORKERS)
 
 
 # ---------------------------------------------------------------- inquiries

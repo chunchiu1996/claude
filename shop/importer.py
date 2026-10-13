@@ -17,6 +17,7 @@ from .catalog import (
     slugify,
     unique_slug,
 )
+from .db import atomic
 from .pricing import parse_money, parse_tiers
 
 REQUIRED, NEW_ONLY, RECOMMENDED, OPTIONAL = "Always 必填", "New products 新产品必填", "Recommended 建议填写", "Optional 选填"
@@ -247,7 +248,8 @@ def import_rows(db, rows, reference=None, stock_mode="add"):
         return result
 
     seen = set()
-    try:
+
+    def work():
         for rownum, raw_row in enumerate(rows[header_index + 1:], start=header_index + 2):
             row = {}
             for key, value in zip(headers, raw_row, strict=False):  # rows may be shorter/longer than the header
@@ -260,13 +262,17 @@ def import_rows(db, rows, reference=None, stock_mode="add"):
             except ValueError as exc:
                 result.errors.append((rownum, str(exc)))
         if result.errors:
-            db.rollback()
-        else:
-            db.commit()
-    except Exception:
-        db.rollback()
-        raise
+            raise _NothingImported
+
+    try:
+        atomic(db, work)
+    except _NothingImported:
+        result.created = result.updated = result.units_received = 0
     return result
+
+
+class _NothingImported(Exception):
+    """Raised to undo the whole import when any row has an error."""
 
 
 def _int(value, field):

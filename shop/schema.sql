@@ -174,3 +174,9 @@ CREATE TABLE IF NOT EXISTS payouts (
     note TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- Values the app generates once and keeps (e.g. the session key on Cloudflare, which has no disk).
+CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);

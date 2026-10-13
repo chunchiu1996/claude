@@ -7,3 +7,9 @@ tests
 .env
 deploy
 *.md
+node_modules
+python_modules
+.venv-workers
+.venv-cf
+.cf-build
+.wrangler

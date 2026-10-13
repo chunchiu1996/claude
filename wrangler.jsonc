@@ -1,0 +1,45 @@
+// Cloudflare Workers configuration: the whole shop on Cloudflare (no server).
+// Deploy guide: deploy/CLOUDFLARE-WORKERS.md. Docker uses Dockerfile / docker-compose.yml instead.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "liquidatorusa",
+  "main": ".cf-build/src/worker.py",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["python_workers"],
+
+  // deploy/build_worker.py copies worker.py + shop/ into .cf-build/src (the Worker's code, templates
+  // and schema) and shop/static into .cf-build/assets (served by Cloudflare at /static/...).
+  "build": { "command": "python3 deploy/build_worker.py", "watch_dir": ["shop", "worker.py"] },
+  "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.xml", "**/*.sql"] }],
+  "assets": { "directory": ".cf-build/assets" },
+
+  // The shop and its database: one Durable Object with built-in SQLite storage.
+  "durable_objects": { "bindings": [{ "name": "SHOP", "class_name": "Shop" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Shop"] }],
+  // Product photos.
+  "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "liquidatorusa-media" }],
+  // Order confirmations, invoices and alerts (Cloudflare Email Service).
+  "send_email": [{ "name": "EMAIL" }],
+  // Big spreadsheet imports need more than the default 30 seconds of CPU.
+  "limits": { "cpu_ms": 300000 },
+
+  // The English store and the Chinese seller site. liquidatorusa.com itself is not touched.
+  "routes": [
+    { "pattern": "shop.liquidatorusa.com", "custom_domain": true },
+    { "pattern": "partner.liquidatorusa.com", "custom_domain": true }
+  ],
+
+  // Fixed settings. Everything else (phone, WhatsApp, WeChat, payment instructions…) and the secrets
+  // ADMIN_PASSWORD / SECRET_KEY / STRIPE_SECRET_KEY are set in the Cloudflare dashboard:
+  // Workers & Pages → liquidatorusa → Settings → Variables and Secrets. Never put passwords in this file.
+  "vars": {
+    "SITE_NAME": "Liquidator USA",
+    "CONTACT_EMAIL": "sales@liquidatorusa.com",
+    "SMTP_FROM": "sales@liquidatorusa.com",
+    "SELLER_SITE_DOMAIN": "partner.liquidatorusa.com",
+    "SHOP_LOCATION": "wnam"
+  },
+  // Keep values you change in the dashboard when deploying again.
+  "keep_vars": true,
+  "observability": { "enabled": true }
+}

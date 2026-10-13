@@ -6,6 +6,8 @@ import urllib.request
 
 from flask import current_app
 
+from . import cloud
+
 API = "https://api.stripe.com/v1"
 
 
@@ -33,6 +35,8 @@ def _flatten(data, prefix=""):
 
 def _call(method, path, data=None):
     body = urllib.parse.urlencode(_flatten(data)).encode() if data else None
+    if cloud.ON_WORKERS:
+        return _call_with_fetch(method, path, body)
     req = urllib.request.Request(API + path, data=body, method=method)
     req.add_header("Authorization", "Bearer " + current_app.config["STRIPE_SECRET_KEY"])
     if body:
@@ -45,6 +49,19 @@ def _call(method, path, data=None):
         raise PaymentError(f"Stripe error {exc.code}: {detail[:300]}") from exc
     except urllib.error.URLError as exc:
         raise PaymentError(f"Could not reach Stripe: {exc.reason}") from exc
+
+
+def _call_with_fetch(method, path, body):
+    headers = {"Authorization": "Bearer " + current_app.config["STRIPE_SECRET_KEY"]}
+    if body:
+        headers["Content-Type"] = "application/x-www-form-urlencoded"
+    try:
+        status, raw = cloud.http_request(method, API + path, headers, body)
+    except Exception as exc:  # network errors surface as JavaScript exceptions
+        raise PaymentError(f"Could not reach Stripe: {exc}") from exc
+    if status >= 400:
+        raise PaymentError(f"Stripe error {status}: {raw.decode('utf-8', errors='replace')[:300]}")
+    return json.loads(raw)
 
 
 def create_checkout_session(order, items, success_url, cancel_url):

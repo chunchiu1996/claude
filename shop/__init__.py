@@ -4,7 +4,7 @@ from pathlib import Path
 
 from flask import Flask, abort, request, session
 
-from . import db
+from . import cloud, db
 from .pricing import fmt_money, parse_money, pluralize
 
 
@@ -65,13 +65,19 @@ def create_app(test_config=None):
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SECURE=env("SESSION_COOKIE_SECURE", "0") == "1",
     )
+    if cloud.ON_WORKERS:
+        # Cloudflare: HTTPS everywhere, the visitor's IP comes from Cloudflare, and each request
+        # (including uploads) must fit in the Worker's 128 MB of memory.
+        app.config.update(SESSION_COOKIE_SECURE=True, CLIENT_IP_HEADER=env("CLIENT_IP_HEADER", "CF-Connecting-IP"),
+                          MAX_CONTENT_LENGTH=int(env("MAX_UPLOAD_MB", "25")) * 1024 * 1024)
     if test_config:
         app.config.update(test_config)
-    if not app.config["SECRET_KEY"]:
+    if not app.config["SECRET_KEY"] and not cloud.ON_WORKERS:
         data_dir = Path(app.config["DATABASE"]).parent
         data_dir.mkdir(parents=True, exist_ok=True)
         app.config["SECRET_KEY"] = _load_or_create_secret(data_dir)
-    Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
+    if not cloud.ON_WORKERS:
+        Path(app.config["UPLOAD_FOLDER"]).mkdir(parents=True, exist_ok=True)
 
     if app.config["SELLER_SITE_DOMAIN"]:
         from .seller import SellerDomainMiddleware
@@ -85,6 +91,8 @@ def create_app(test_config=None):
     db.init_app(app)
     with app.app_context():
         db.init_db()
+        if not app.config["SECRET_KEY"]:  # Cloudflare without a SECRET_KEY secret: keep one in the database
+            app.config["SECRET_KEY"] = db.stored_value("secret_key", lambda: secrets.token_hex(32))
 
     _install_csrf(app)
     _install_template_helpers(app)
