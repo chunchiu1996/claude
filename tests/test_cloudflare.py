@@ -116,7 +116,8 @@ def workers(tmp_path, monkeypatch):
                                 SMTP_FROM="sales@liquidatorusa.com")
     monkeypatch.setattr(cloud, "ON_WORKERS", True)
     for name, fake in {"wait": lambda value: value, "js_object": lambda value: value, "js_json": lambda value: value,
-                       "js_bytes": bytes, "py_bytes": bytes}.items():
+                       "js_bytes": bytes, "py_bytes": bytes,
+                       "call_binding": lambda binding, method, *args: getattr(binding, method)(*args)}.items():
         monkeypatch.setattr(cloud, name, fake)
     monkeypatch.setattr(shop_db, "_js_null", lambda: None)
     monkeypatch.setattr(shop_db, "_js_callable", lambda fn: (fn, lambda: None))

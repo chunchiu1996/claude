@@ -20,7 +20,7 @@ jobs:
       - name: Start the shop on the Workers runtime
         working-directory: cloudflare
         run: |
-          printf 'ADMIN_PASSWORD=smoke-pw\nSECRET_KEY=ci-only-not-secret\nLOG_MEMORY=1\nDEBUG_EMAIL=1\n' > .dev.vars
+          printf 'ADMIN_PASSWORD=smoke-pw\nSECRET_KEY=ci-only-not-secret\nLOG_MEMORY=1\n' > .dev.vars
           uv run pywrangler dev --ip 127.0.0.1 --port 8787 --local-protocol https > ../wrangler.log 2>&1 &
           PID=$!
           for i in $(seq 1 150); do
@@ -29,8 +29,6 @@ jobs:
             sleep 2
           done
           curl -sk https://127.0.0.1:8787/healthz || (tail -100 ../wrangler.log; exit 1)
-      - name: Email diagnostics
-        run: curl -sk https://127.0.0.1:8787/_diag/email || true
       - name: Smoke test
         run: |
           uv venv .venv-smoke --python 3.12

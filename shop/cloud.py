@@ -54,19 +54,23 @@ def setting(name):
 
 def wait(promise):
     """Wait for a JavaScript promise from synchronous (Flask) code."""
-    import js
-    from pyodide.ffi import JsProxy, create_once_callable, run_sync
+    from pyodide.ffi import run_sync
 
-    if isinstance(promise, JsProxy) and promise.typeof == "function":
-        # Calls to RPC bindings (like the email sender) return an "RPC promise": a function object that
-        # run_sync() refuses (and that Promise.resolve() passes through). Wrap it in a real Promise.
-        rpc_promise = promise
-
-        def executor(resolve, reject):
-            rpc_promise.then(resolve, reject)
-
-        promise = js.Promise.new(create_once_callable(executor))
     return run_sync(promise)
+
+
+_rpc_helper = None
+
+
+def call_binding(binding, method, *args):
+    """Call a method on an RPC binding (like the EMAIL sender) and wait for the result.
+    The call itself is made by cloudflare/rpc.mjs: Python can't hold the RPC promise it returns."""
+    global _rpc_helper
+    if _rpc_helper is None:
+        from workers import import_from_javascript
+
+        _rpc_helper = import_from_javascript("rpc.mjs")
+    return wait(_rpc_helper.callBinding(binding, method, *args))
 
 
 def js_object(mapping):

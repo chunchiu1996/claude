@@ -128,7 +128,7 @@ def _deliver_cloudflare(to, subject, body, reply_to=None, html=None):
     if reply_to:
         message["replyTo"] = reply_to
     try:
-        cloud.wait(_cloudflare_email().send(cloud.js_json(message)))
+        cloud.call_binding(_cloudflare_email(), "send", cloud.js_json(message))
         return None
     except Exception as exc:  # the binding throws a JavaScript Error with a code such as E_SENDER_NOT_VERIFIED
         current_app.logger.error("Cloudflare email error: %s", cloud.describe_error(exc))
