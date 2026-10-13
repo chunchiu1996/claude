@@ -11,7 +11,7 @@
   // build.py copies worker.py + ../shop into .cf-build/src (the Worker's code, templates and schema)
   // and ../shop/static into .cf-build/assets (served by Cloudflare at /static/...).
   "build": { "command": "python3 build.py", "watch_dir": ["../shop", "worker.py"] },
-  "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.xml", "**/*.sql"] }],
+  "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.xml", "**/*.sql"], "fallthrough": false }],
   "assets": { "directory": ".cf-build/assets" },
 
   // The shop and its database: one Durable Object with built-in SQLite storage.

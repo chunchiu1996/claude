@@ -52,6 +52,8 @@ class Browser:
                     url = req.full_url
                     continue
                 return exc.code, dict(exc.headers), exc.read()
+            except urllib.error.URLError as exc:  # e.g. a redirect to an address this machine can't reach
+                return 0, {}, str(exc.reason).encode()
         raise RuntimeError("Too many redirects")
 
     def get(self, path, **kw):
@@ -117,8 +119,11 @@ def read_only_checks(b):
     check(status == 200 and "<html" in html, f"home page loads ({status})")
     status, _, css = b.get("/static/style.css")
     check(status == 200 and b"--brand" in css, f"stylesheet served ({status})")
-    status, html = b.text("/zh/")
-    check(status in (200, 301) and ("交给我们来卖" in html or status == 301), f"Chinese seller site responds ({status})")
+    status, headers, body = b.get("/zh/", follow=False)
+    html = body.decode("utf-8", "replace")
+    location = headers.get("Location", "")
+    check((status == 200 and "交给我们来卖" in html) or (status == 301 and "partner." in location),
+          f"Chinese seller site responds ({status} {location})")
     status, robots = b.text("/robots.txt")
     check(status == 200 and "Disallow: /admin" in robots, "robots.txt")
 
