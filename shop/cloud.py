@@ -15,6 +15,12 @@ _storage = None
 
 def raw(obj):
     """The plain JavaScript object behind the Python Workers SDK's convenience wrappers."""
+    try:
+        from pyodide.ffi import JsProxy
+    except ImportError:  # plain Python (tests)
+        JsProxy = ()
+    if JsProxy and isinstance(obj, JsProxy):  # already plain JavaScript (RPC stubs answer any attribute name)
+        return obj
     for attr in ("_binding", "_env", "_ctx"):
         inner = getattr(obj, attr, None)
         if inner is not None:

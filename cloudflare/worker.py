@@ -49,7 +49,12 @@ class Shop(DurableObject):
         cloud.bind(env, cloud.raw(ctx).storage)
 
     async def fetch(self, request):
-        return await wsgi.fetch(get_app(), request, self.env)
+        response = await wsgi.fetch(get_app(), request, self.env)
+        if cloud.setting("LOG_MEMORY"):  # diagnostics: how close the shop gets to the 128 MB limit
+            import pyodide_js
+
+            print(f"memory {pyodide_js._module.HEAP8.length / 1e6:.0f} MB after {request.method} {request.url}")
+        return response
 
 
 class Default(WorkerEntrypoint):
