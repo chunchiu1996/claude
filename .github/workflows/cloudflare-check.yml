@@ -18,14 +18,17 @@ jobs:
           node-version: "22"
       - uses: astral-sh/setup-uv@v6
       - name: Start the shop on the Workers runtime
+        working-directory: cloudflare
         run: |
           printf 'ADMIN_PASSWORD=smoke-pw\nSECRET_KEY=ci-only-not-secret\n' > .dev.vars
-          uv run pywrangler dev --ip 127.0.0.1 --port 8787 --local-protocol https > wrangler.log 2>&1 &
+          uv run pywrangler dev --ip 127.0.0.1 --port 8787 --local-protocol https > ../wrangler.log 2>&1 &
+          PID=$!
           for i in $(seq 1 150); do
             curl -sk -o /dev/null https://127.0.0.1:8787/healthz && break
+            kill -0 $PID 2>/dev/null || break
             sleep 2
           done
-          curl -sk https://127.0.0.1:8787/healthz || (tail -100 wrangler.log; exit 1)
+          curl -sk https://127.0.0.1:8787/healthz || (tail -100 ../wrangler.log; exit 1)
       - name: Smoke test
         run: |
           uv venv .venv-smoke --python 3.12

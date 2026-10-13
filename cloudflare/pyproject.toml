@@ -1,4 +1,5 @@
-# Used for the Cloudflare Workers build (uv run pywrangler deploy). Docker uses requirements.txt.
+# Python packages for the Cloudflare Workers version (uv run pywrangler deploy, from this folder).
+# Docker uses ../requirements.txt instead.
 [project]
 name = "liquidatorusa"
 version = "1.0.0"

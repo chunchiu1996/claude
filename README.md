@@ -104,7 +104,7 @@ The same code runs two ways:
 - **Fully on Cloudflare, no server**: follow [`deploy/CLOUDFLARE-WORKERS.md`](deploy/CLOUDFLARE-WORKERS.md).
   The shop runs on Cloudflare Workers. Its database is a Durable Object, photos go in R2, and email goes
   through Cloudflare Email Service. You publish from GitHub with one button. Costs $5/month (Workers Paid).
-  `worker.py`, `wrangler.jsonc` and `shop/cloud.py` hold the Cloudflare-specific parts.
+  The `cloudflare/` folder (`worker.py`, `wrangler.jsonc`) and `shop/cloud.py` hold the Cloudflare-specific parts.
 - **Cloudflare + a small server**: follow [`deploy/CLOUDFLARE.md`](deploy/CLOUDFLARE.md).
   `docker compose up -d` runs the shop, a Cloudflare Tunnel (HTTPS, no open ports) and a daily backup.
   The store is served at `shop.liquidatorusa.com` and the Chinese seller site at `partner.liquidatorusa.com`;

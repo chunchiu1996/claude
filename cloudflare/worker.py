@@ -5,7 +5,8 @@
 * Product photos are stored in the R2 bucket bound as MEDIA, and served straight from R2 here.
 * /static/ files (CSS) are served by Workers Static Assets before this code runs.
 
-Deploy with `uv run pywrangler deploy` (see deploy/CLOUDFLARE-WORKERS.md). Docker/gunicorn use wsgi.py instead.
+Deploy with `uv run pywrangler deploy` from this folder (see deploy/CLOUDFLARE-WORKERS.md).
+Docker/gunicorn use ../wsgi.py instead.
 """
 import os
 from urllib.parse import unquote, urlsplit

@@ -1,5 +1,6 @@
 // Cloudflare Workers configuration: the whole shop on Cloudflare (no server).
-// Deploy guide: deploy/CLOUDFLARE-WORKERS.md. Docker uses Dockerfile / docker-compose.yml instead.
+// Run wrangler / pywrangler from this folder. Deploy guide: deploy/CLOUDFLARE-WORKERS.md.
+// (Docker uses the Dockerfile and docker-compose.yml in the folder above instead.)
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "liquidatorusa",
@@ -7,9 +8,9 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["python_workers"],
 
-  // deploy/build_worker.py copies worker.py + shop/ into .cf-build/src (the Worker's code, templates
-  // and schema) and shop/static into .cf-build/assets (served by Cloudflare at /static/...).
-  "build": { "command": "python3 deploy/build_worker.py", "watch_dir": ["shop", "worker.py"] },
+  // build.py copies worker.py + ../shop into .cf-build/src (the Worker's code, templates and schema)
+  // and ../shop/static into .cf-build/assets (served by Cloudflare at /static/...).
+  "build": { "command": "python3 build.py", "watch_dir": ["../shop", "worker.py"] },
   "rules": [{ "type": "Text", "globs": ["**/*.html", "**/*.xml", "**/*.sql"] }],
   "assets": { "directory": ".cf-build/assets" },
 

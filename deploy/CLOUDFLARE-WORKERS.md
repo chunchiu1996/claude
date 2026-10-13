@@ -100,6 +100,7 @@ Press **Deploy** to save. The shop restarts with the new settings within a few s
 
 ```bash
 # needs Node.js 22 and uv (https://docs.astral.sh/uv/)
+cd cloudflare
 printf 'ADMIN_PASSWORD=test\n' > .dev.vars
 uv run pywrangler dev          # → http://localhost:8787, with a local test database and bucket
 ```

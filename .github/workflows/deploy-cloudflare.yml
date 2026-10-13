@@ -50,4 +50,5 @@ jobs:
         run: npx --yes wrangler@4 r2 bucket create liquidatorusa-media || echo "Bucket already exists"
       - name: Publish
         if: steps.secrets.outputs.ready == 'true'
+        working-directory: cloudflare
         run: uv run pywrangler deploy
