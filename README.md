@@ -97,11 +97,15 @@ database: delete `instance/shop.db`, or skip `seed-demo`.
 | `DATABASE`, `UPLOAD_FOLDER` | `instance/…` | Where the SQLite DB and uploaded images live |
 | `TRUST_PROXY`, `SESSION_COOKIE_SECURE` | 0 | Set `1` behind an HTTPS host. The Dockerfile already does this |
 
-## Deploy (about $5–7/month)
+## Deploy (about $5/month)
 
-The app is one small Python process with a SQLite file, and it has no paid dependencies.
+The same code runs two ways:
 
-- **Cloudflare + a small server (recommended)**: follow [`deploy/CLOUDFLARE.md`](deploy/CLOUDFLARE.md).
+- **Fully on Cloudflare, no server**: follow [`deploy/CLOUDFLARE-WORKERS.md`](deploy/CLOUDFLARE-WORKERS.md).
+  The shop runs on Cloudflare Workers. Its database is a Durable Object, photos go in R2, and email goes
+  through Cloudflare Email Service. You publish from GitHub with one button. Costs $5/month (Workers Paid).
+  `worker.py`, `wrangler.jsonc` and `shop/cloud.py` hold the Cloudflare-specific parts.
+- **Cloudflare + a small server**: follow [`deploy/CLOUDFLARE.md`](deploy/CLOUDFLARE.md).
   `docker compose up -d` runs the shop, a Cloudflare Tunnel (HTTPS, no open ports) and a daily backup.
   The store is served at `shop.liquidatorusa.com` and the Chinese seller site at `partner.liquidatorusa.com`;
   the main `liquidatorusa.com` site is left as it is. `/healthz` returns `ok` for uptime monitors.

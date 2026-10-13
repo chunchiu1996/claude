@@ -1,4 +1,6 @@
-# Going live on liquidatorusa.com with Cloudflare
+# Going live on liquidatorusa.com with Cloudflare + your own server
+
+> Don't want a server at all? Run everything on Cloudflare instead: [`CLOUDFLARE-WORKERS.md`](CLOUDFLARE-WORKERS.md).
 
 The result:
 
