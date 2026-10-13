@@ -15,6 +15,10 @@ emails a month ($0.35 per 1,000 after that). R2 is free up to 10 GB of photos (a
 
 You publish from GitHub with one button. GitHub tests the shop first, then sends it to Cloudflare.
 
+**Tested on Cloudflare's own runtime** (GitHub runs it on every change: *Actions → Cloudflare runtime check*):
+pages, admin, a 12-megapixel phone photo (about 2 seconds), a 20,000-row Excel import (7–20 seconds),
+checkout, invoice and email all work, and the shop stays under 80 MB of Cloudflare's 128 MB memory limit.
+
 ---
 
 ## One-time setup (about 20 minutes)
@@ -55,6 +59,9 @@ On GitHub, open the repository → **Settings** → **Secrets and variables** �
    To publish again later, open that workflow and press **Run workflow**.
 
 The first publish creates the photo bucket, the database, and the two addresses (with HTTPS certificates).
+
+> If you already created `shop` or `partner` DNS records in Cloudflare (for example while trying the
+> server/tunnel setup), delete those two records first: the publish creates them itself and stops if they exist.
 
 ### 6. Cloudflare: your password and contact details
 

@@ -17,6 +17,8 @@ jobs:
         with:
           node-version: "22"
       - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: false  # the test server keeps uv busy until the job ends
       - name: Start the shop on the Workers runtime
         working-directory: cloudflare
         run: |
@@ -37,3 +39,6 @@ jobs:
       - name: Runtime log
         if: always()
         run: grep -v '^│\|^├\|^┌\|^└' wrangler.log | tail -200
+      - name: Stop the test server
+        if: always()
+        run: pkill -f "wrangler dev" || true
