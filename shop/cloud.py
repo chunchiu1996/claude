@@ -55,12 +55,17 @@ def setting(name):
 def wait(promise):
     """Wait for a JavaScript promise from synchronous (Flask) code."""
     import js
-    from pyodide.ffi import JsProxy, run_sync
+    from pyodide.ffi import JsProxy, create_once_callable, run_sync
 
-    if isinstance(promise, JsProxy):
-        # Calls to RPC bindings (like the email sender) return an "RPC promise", which is a function
-        # object that run_sync() refuses: turn it into an ordinary Promise first.
-        promise = js.Promise.resolve(promise)
+    if isinstance(promise, JsProxy) and promise.typeof == "function":
+        # Calls to RPC bindings (like the email sender) return an "RPC promise": a function object that
+        # run_sync() refuses (and that Promise.resolve() passes through). Wrap it in a real Promise.
+        rpc_promise = promise
+
+        def executor(resolve, reject):
+            rpc_promise.then(resolve, reject)
+
+        promise = js.Promise.new(create_once_callable(executor))
     return run_sync(promise)
 
 
