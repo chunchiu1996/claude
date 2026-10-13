@@ -115,8 +115,8 @@ def workers(tmp_path, monkeypatch):
     env = types.SimpleNamespace(MEDIA=bucket, EMAIL=email, ADMIN_PASSWORD="pw", SITE_NAME="Liquidator USA",
                                 SMTP_FROM="sales@liquidatorusa.com")
     monkeypatch.setattr(cloud, "ON_WORKERS", True)
-    for name, fake in {"wait": lambda value: value, "js_object": lambda value: value, "js_bytes": bytes,
-                       "py_bytes": bytes}.items():
+    for name, fake in {"wait": lambda value: value, "js_object": lambda value: value, "js_json": lambda value: value,
+                       "js_bytes": bytes, "py_bytes": bytes}.items():
         monkeypatch.setattr(cloud, name, fake)
     monkeypatch.setattr(shop_db, "_js_null", lambda: None)
     monkeypatch.setattr(shop_db, "_js_callable", lambda fn: (fn, lambda: None))

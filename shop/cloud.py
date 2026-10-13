@@ -67,6 +67,26 @@ def js_object(mapping):
     return to_js(mapping, dict_converter=js.Object.fromEntries)
 
 
+def js_json(mapping):
+    """A plain JavaScript object made through JSON: what bindings like the email sender expect."""
+    import json
+
+    import js
+
+    return js.JSON.parse(json.dumps(mapping))
+
+
+def describe_error(exc):
+    """The JavaScript error message and stack behind a failed Cloudflare call, for the logs."""
+    js_error = getattr(exc, "js_error", None)
+    parts = [f"{type(exc).__name__}: {exc}"]
+    for attr in ("code", "stack"):
+        value = getattr(js_error, attr, None) if js_error is not None else None
+        if value:
+            parts.append(f"{attr}={value}")
+    return " | ".join(parts)
+
+
 def js_bytes(raw):
     from js import Uint8Array
 
