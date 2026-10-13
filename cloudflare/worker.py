@@ -49,12 +49,39 @@ class Shop(DurableObject):
         cloud.bind(env, cloud.raw(ctx).storage)
 
     async def fetch(self, request):
+        if urlsplit(request.url).path == "/_diag/email" and cloud.setting("DEBUG_EMAIL"):
+            return _email_diagnostics()
         response = await wsgi.fetch(get_app(), request, self.env)
         if cloud.setting("LOG_MEMORY"):  # diagnostics: how close the shop gets to the 128 MB limit
             import pyodide_js
 
             print(f"memory {pyodide_js._module.HEAP8.length / 1e6:.0f} MB after {request.method} {request.url}")
         return response
+
+
+def _email_diagnostics():
+    """Temporary (CI only, DEBUG_EMAIL set): report each step of a Cloudflare email send."""
+    import json
+    import traceback
+
+    steps = []
+
+    def step(name, fn):
+        try:
+            value = fn()
+            steps.append(f"{name}: ok {getattr(value, 'typeof', type(value).__name__)} {str(value)[:120]}")
+            return value
+        except BaseException:
+            steps.append(f"{name}: FAILED {traceback.format_exc()[-1500:]}")
+            return None
+
+    binding = step("binding", lambda: cloud.binding("EMAIL"))
+    message = step("message", lambda: cloud.js_json({"to": "a@example.com", "from": "sales@liquidatorusa.com",
+                                                       "subject": "diag", "text": "hello"}))
+    step("send attribute", lambda: binding.send)
+    result = step("call send", lambda: binding.send(message))
+    step("wait", lambda: cloud.wait(result))
+    return js.Response.new(json.dumps(steps, indent=1), cloud.js_object({"headers": {"Content-Type": "application/json"}}))
 
 
 class Default(WorkerEntrypoint):
