@@ -55,6 +55,14 @@ There are **two separate websites** in one app, for two audiences, with no links
 - Name a campaign to get a tracked landing-page link and a **ready-made Chinese marketing email** in HTML (it works in Outlook, Gmail, QQ Mail and 163 Mail). Copy or download it for your email tool (Mailchimp, SendCloud, Brevo…)
 - A table of applications and signed factories per campaign
 
+**AI-written emails with human review (Admin → Campaigns → AI drafts)**
+- Pick the audience (US buyers in English, or Chinese factories in Chinese), name the campaign and write a one-line brief. Claude writes the subject (plus two alternatives), preview text, copy and button, and picks products to feature. It works only from your real catalog, prices, stock and terms, and lists anything you should double-check
+- **Nothing goes out without a person's approval.** Each draft opens on a review page with an editable copy, a live preview and **automatic checks**: prices in the copy that don't match the catalog, hidden or sold-out products, leftover placeholders, missing subject or button, wrong language, and spammy wording. Errors block approval
+- Edit the copy yourself, or type feedback and press **Rewrite with AI**. **Send me a test** sends it to your inbox
+- **Approve** with your name and a confirmation tick. Only an approved draft can be copied or downloaded as HTML for your email tool, then **marked as sent**. Editing an approved draft sends it back for review, so what goes out is what was approved. Every step is logged in the draft's history
+- Automate it: `flask --app wsgi edm-draft --audience buyer --brief "Spring flooring push" --site-url https://shop.liquidatorusa.com` (e.g. from cron) writes a draft, queues it for review and emails you the link. It never emails customers
+- Needs `ANTHROPIC_API_KEY`. `EDM_AI_MODEL` changes the model (default `claude-opus-5-5`)
+
 > The terms wording on the Chinese site (commission, monthly settlement, fees) is placeholder text. Check it matches your actual agreement in `shop/templates/seller/home.html` before sending campaigns.
 
 ## Run it locally
@@ -89,6 +97,8 @@ database: delete `instance/shop.db`, or skip `seed-demo`.
 | `SELLER_SITE_DOMAIN` | *(unset)* | Serve the Chinese seller site at the root of its own domain (e.g. `partner.example.com`). Point that domain at the same server |
 | `NOTIFY_EMAIL` | `CONTACT_EMAIL` | Where new quote requests, factory applications and orders are emailed |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | *(unset)*, 587 | Outgoing email (alerts, order confirmations, invoices). Port 465 uses SSL; others use STARTTLS (`SMTP_STARTTLS=0` turns it off). Without SMTP everything still lands in *Admin → Inquiries / Orders* |
+| `ANTHROPIC_API_KEY` | *(unset: AI drafts off)* | Lets Claude write marketing-email drafts for review (*Admin → Campaigns → AI drafts*) |
+| `EDM_AI_MODEL` | claude-opus-5-5 | Model used for those drafts |
 | `PAYMENT_INSTRUCTIONS` | *(unset)* | How customers pay an invoice (Zelle, bank transfer, check…), printed on invoices. `\n` starts a new line |
 | `MAX_UPLOAD_MB` | 95 | Largest single upload. Keep it under 100 behind Cloudflare |
 | `CLIENT_IP_HEADER` | *(unset)* | Header with the visitor's real IP, for the login limit. `docker-compose.yml` sets `CF-Connecting-IP` |

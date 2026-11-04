@@ -78,6 +78,7 @@ Dashboard → **Workers & Pages** → **liquidatorusa** → **Settings** → **V
 | `PAYMENT_INSTRUCTIONS` | Text | `Zelle: pay@liquidatorusa.com\nCheck payable to Liquidator USA LLC` |
 | `NOTIFY_EMAIL` | Text | where your order and quote alerts go (defaults to `sales@liquidatorusa.com`) |
 | `STRIPE_SECRET_KEY` | **Secret** | optional: card payments |
+| `ANTHROPIC_API_KEY` | **Secret** | optional: AI-written marketing email drafts (*Admin → Campaigns → AI drafts*) |
 
 Press **Deploy** to save. The shop restarts with the new settings within a few seconds.
 

@@ -1,0 +1,134 @@
+{% extends "admin/_layout.html" %}
+{% block admin_title %}Review: {{ draft.subject or "AI draft" }}{% endblock %}
+{% block admin_content %}
+{% set locked = draft.status == 'sent' %}
+<p class="small"><a href="{{ url_for('admin.campaign_drafts') }}">← AI email drafts</a></p>
+<div class="section-head">
+  <h1>{{ draft.subject or "AI draft" }} <span class="pill pill-edm-{{ draft.status }}">{{ statuses[draft.status] }}</span></h1>
+  <span class="small muted">{{ audiences[draft.audience] }} · campaign <code>{{ draft.campaign }}</code></span>
+</div>
+{% if draft.brief %}<p class="small"><strong>Brief:</strong> <span class="prewrap">{{ draft.brief }}</span></p>{% endif %}
+
+<div class="two-col">
+  <section>
+    <div class="panel">
+      <h2 class="h3">Checks</h2>
+      <ul class="check-list">
+        {% for level, message in checks %}<li class="check-{{ level }}">{{ message }}</li>{% endfor %}
+      </ul>
+      {% if notes %}
+      <h3 class="h3">AI's notes: confirm before approving</h3>
+      <ul class="small">{% for n in notes %}<li>{{ n }}</li>{% endfor %}</ul>
+      {% endif %}
+    </div>
+
+    <form method="post" class="panel">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <h2 class="h3">Copy</h2>
+      <fieldset {% if locked %}disabled{% endif %} style="border:0;padding:0;margin:0">
+      <label class="field"><span>Subject</span><input name="subject" value="{{ draft.subject }}" list="subject-options"></label>
+      {% if subject_options %}
+        <datalist id="subject-options">{% for s in subject_options %}<option value="{{ s }}">{% endfor %}</datalist>
+        <p class="small muted">Other subjects the AI suggested: {% for s in subject_options %}“{{ s }}”{% if not loop.last %} · {% endif %}{% endfor %}</p>
+      {% endif %}
+      <label class="field"><span>Preheader (inbox preview line)</span><input name="preheader" value="{{ draft.preheader or '' }}"></label>
+      <label class="field"><span>Headline</span><input name="headline" value="{{ draft.headline or '' }}"></label>
+      <label class="field"><span>Opening</span><textarea name="intro" rows="4">{{ draft.intro or '' }}</textarea></label>
+      <label class="field"><span>Selling points (one per line)</span><textarea name="bullets" rows="5">{{ draft.bullets or '' }}</textarea></label>
+      {% if draft.audience == 'buyer' %}
+      <label class="field"><span>Featured products (SKUs, one per line)</span><textarea name="product_skus" rows="4">{{ draft.product_skus or '' }}</textarea></label>
+      {% else %}<input type="hidden" name="product_skus" value="">{% endif %}
+      <label class="field"><span>Closing</span><textarea name="closing" rows="2">{{ draft.closing or '' }}</textarea></label>
+      <label class="field"><span>Button text</span><input name="cta_label" value="{{ draft.cta_label or '' }}"></label>
+      <button class="btn btn-primary">Save changes</button>
+      {% if draft.status == 'approved' %}<span class="small muted">Saving a change sends it back for review.</span>{% endif %}
+      </fieldset>
+    </form>
+
+    {% if not locked %}
+    <form method="post" action="{{ url_for('admin.campaign_draft_revise', draft_id=draft.id) }}" class="panel">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <h2 class="h3">Ask the AI to rewrite it</h2>
+      <textarea name="feedback" rows="3" class="reply-box" placeholder="e.g. Shorter. Lead with the vanities. Less formal." required></textarea>
+      <button class="btn btn-sm" {% if not ai_enabled %}disabled title="Set ANTHROPIC_API_KEY"{% endif %}>Rewrite with AI</button>
+      <span class="small muted">Replaces the copy above; the result needs reviewing again.</span>
+    </form>
+    {% endif %}
+  </section>
+
+  <section>
+    <div class="panel">
+      <h2 class="h3">Decision</h2>
+      {% if draft.status == 'review' %}
+        <form method="post" action="{{ url_for('admin.campaign_draft_approve', draft_id=draft.id) }}">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <label class="field"><span>Your name</span><input name="reviewed_by" value="{{ draft.reviewed_by or '' }}" required></label>
+          <label class="field"><span>Note (optional)</span><input name="review_note"></label>
+          <label class="small"><input type="checkbox" name="confirm" value="1"> I've read the whole email and checked its facts, prices and the AI's notes.</label>
+          <div class="actions" style="margin-top:10px">
+            <button class="btn btn-primary" {% if blocking %}disabled title="Fix the errors in Checks first"{% endif %}>Approve</button>
+            <button class="btn" formaction="{{ url_for('admin.campaign_draft_reject', draft_id=draft.id) }}" formnovalidate>Reject</button>
+          </div>
+          {% if blocking %}<p class="small warn">Fix the {{ blocking|length }} error{{ "s" if blocking|length != 1 }} under Checks before approving.</p>{% endif %}
+        </form>
+      {% elif draft.status == 'approved' %}
+        <p>Approved by <strong>{{ draft.reviewed_by }}</strong> on {{ draft.approved_at[:16] }}.{% if draft.review_note %} “{{ draft.review_note }}”{% endif %}</p>
+        <p class="small">Paste this HTML into your email tool (Mailchimp, Brevo, SendCloud…) with this subject{% if draft.preheader %} and preview text{% endif %}:</p>
+        <ul class="small"><li>Subject: <strong>{{ draft.subject }}</strong></li>{% if draft.preheader %}<li>Preview text: <em>{{ draft.preheader }}</em></li>{% endif %}</ul>
+        <div class="actions">
+          <button class="btn btn-primary btn-sm" type="button" data-copy="email-html">Copy email HTML</button>
+          <a class="btn btn-sm" href="{{ url_for('admin.campaign_draft_export', draft_id=draft.id) }}">Download .html</a>
+        </div>
+        <textarea id="email-html" class="reply-box" rows="3" readonly>{{ email_html }}</textarea>
+        <form method="post" action="{{ url_for('admin.campaign_draft_sent', draft_id=draft.id) }}" class="filters">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <input name="sent_note" placeholder="Where / to whom, e.g. Brevo – 1,240 contractors">
+          <button class="btn btn-sm">Mark as sent</button>
+        </form>
+      {% elif draft.status == 'rejected' %}
+        <p>Rejected{% if draft.reviewed_by %} by <strong>{{ draft.reviewed_by }}</strong>{% endif %}.{% if draft.review_note %} “{{ draft.review_note }}”{% endif %}</p>
+        <p class="small muted">Save an edit or ask the AI for a rewrite to put it back in review.</p>
+      {% else %}
+        <p>Sent on {{ draft.sent_at[:16] }} (approved by <strong>{{ draft.reviewed_by }}</strong>).</p>
+        <a class="btn btn-sm" href="{{ url_for('admin.campaign_draft_export', draft_id=draft.id) }}">Download .html</a>
+      {% endif %}
+      {% if not locked %}
+      <form method="post" action="{{ url_for('admin.campaign_draft_test', draft_id=draft.id) }}" class="filters" style="margin-top:14px">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <input type="email" name="to" value="{{ default_to }}" required aria-label="Send test to">
+        <button class="btn btn-sm" {% if not email_enabled %}disabled title="Set up email first (Admin → Email)"{% endif %}>Send me a test</button>
+      </form>
+      {% endif %}
+    </div>
+
+    <div class="panel">
+      <h2 class="h3">Preview</h2>
+      <p class="small muted">Subject: <strong>{{ draft.subject }}</strong>{% if draft.preheader %} · Preview: {{ draft.preheader }}{% endif %}</p>
+      <iframe class="email-preview" title="Email preview" srcdoc="{{ email_html }}"></iframe>
+    </div>
+
+    <div class="panel">
+      <h2 class="h3">History</h2>
+      <table class="data small">
+        {% for e in events %}
+          <tr><td class="muted nowrap">{{ e.created_at[:16] }}</td><td><strong>{{ e.action }}</strong>{% if e.note %} — {{ e.note }}{% endif %}</td></tr>
+        {% endfor %}
+      </table>
+      {% if draft.ai_model %}<p class="small muted">Last AI version written by {{ draft.ai_model }}.</p>{% endif %}
+      {% if not locked %}
+      <form method="post" action="{{ url_for('admin.campaign_draft_delete', draft_id=draft.id) }}" onsubmit="return confirm('Delete this draft?')">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}"><button class="link-btn small">Delete draft</button>
+      </form>
+      {% endif %}
+    </div>
+  </section>
+</div>
+<script>
+  document.querySelectorAll("[data-copy]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      navigator.clipboard.writeText(document.getElementById(btn.dataset.copy).value)
+        .then(function () { btn.textContent = "Copied ✓"; });
+    });
+  });
+</script>
+{% endblock %}

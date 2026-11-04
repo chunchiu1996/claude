@@ -1,0 +1,97 @@
+{#- Marketing email built from an AI-drafted, staff-approved edm_drafts row. Table layout and inline styles so it
+    renders in Outlook, Gmail, QQ Mail and 163 Mail. Seller emails use the Chinese site's walnut look. -#}
+{%- set zh = lang == "zh-Hans" -%}
+{%- set c = {"page": "#f6efe7", "band": "#4a2616" if zh else "#7a2f12", "accent": "#d4491b" if zh else "#c4521f",
+             "soft": "#fbf4ec", "ink": "#2e211a", "muted": "#7b6a5f", "link": "#7a3b1d", "line": "#ecdccc"} -%}
+{%- set font = "'PingFang SC','Hiragino Sans GB','Microsoft YaHei',Arial,sans-serif" if zh
+               else "-apple-system,'Segoe UI',Helvetica,Arial,sans-serif" -%}
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ draft.subject }}</title>
+</head>
+<body style="margin:0;padding:0;background:{{ c.page }};">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;">{{ draft.preheader or "" }}</div>
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:{{ c.page }};">
+  <tr><td align="center" style="padding:24px 12px;">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:8px;overflow:hidden;font-family:{{ font }};color:{{ c.ink }};">
+      <tr><td style="background:{{ c.band }};padding:20px 28px;color:#ffffff;font-size:18px;font-weight:bold;">
+        {{ sender.name }}{% if zh %}<br><span style="font-size:12px;font-weight:normal;color:#f2b544;letter-spacing:2px;">美国建材寄售合作</span>{% endif %}
+      </td></tr>
+      <tr><td style="padding:32px 28px 8px;">
+        <h1 style="margin:0 0 16px;font-size:24px;line-height:1.4;color:{{ c.band }};">{{ draft.headline }}</h1>
+        {% for para in (draft.intro or "").split("\n") if para.strip() %}
+        <p style="margin:0 0 14px;font-size:15px;line-height:1.8;">{{ para }}</p>
+        {% endfor %}
+      </td></tr>
+      {% if bullets %}
+      <tr><td style="padding:0 28px;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:{{ c.soft }};border-radius:6px;">
+          <tr><td style="padding:14px 18px;font-size:15px;line-height:2;">
+            {% for b in bullets %}<span style="color:{{ c.accent }};font-weight:bold;">✓</span> {{ b }}{% if not loop.last %}<br>{% endif %}
+            {% endfor %}
+          </td></tr>
+        </table>
+      </td></tr>
+      {% endif %}
+      {% if products %}
+      <tr><td style="padding:20px 28px 0;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+          {% for row in products|batch(2) %}
+          <tr>
+            {% for p in row %}
+            <td width="50%" valign="top" style="padding:0 {{ '6px' if loop.first else '0' }} 14px {{ '0' if loop.first else '6px' }};">
+              <a href="{{ p.url }}" style="text-decoration:none;color:{{ c.ink }};">
+                {% if p.image %}<img src="{{ p.image }}" alt="{{ p.name }}" width="266" style="display:block;width:100%;max-width:266px;height:auto;border-radius:6px;border:1px solid {{ c.line }};">{% endif %}
+                <div style="font-size:14px;font-weight:bold;line-height:1.4;margin-top:8px;">{{ p.name }}</div>
+                {% if p.unit_note %}<div style="font-size:12px;color:{{ c.muted }};">{{ p.unit_note }}</div>{% endif %}
+                <div style="font-size:15px;margin-top:4px;">
+                  {% if p.price %}<b style="color:{{ c.accent }};">{{ p.price }}</b> / {{ p.unit }}
+                    {% if p.compare_at %}<span style="font-size:12px;color:{{ c.muted }};"> · typical retail <s>{{ p.compare_at }}</s></span>{% endif %}
+                  {% else %}<b style="color:{{ c.accent }};">Price on request</b>{% endif %}
+                </div>
+              </a>
+            </td>
+            {% endfor %}
+            {% if row|length == 1 %}<td width="50%"></td>{% endif %}
+          </tr>
+          {% endfor %}
+        </table>
+      </td></tr>
+      {% endif %}
+      {% if draft.closing %}
+      <tr><td style="padding:16px 28px 0;font-size:15px;line-height:1.8;">{{ draft.closing }}</td></tr>
+      {% endif %}
+      <tr><td align="center" style="padding:24px 28px 8px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>
+          <td style="background:{{ c.accent }};border-radius:6px;">
+            <a href="{{ cta_url }}" style="display:inline-block;padding:14px 36px;color:#ffffff;font-size:16px;font-weight:bold;text-decoration:none;">{{ draft.cta_label }}</a>
+          </td>
+        </tr></table>
+      </td></tr>
+      {% if links %}
+      <tr><td align="center" style="padding:6px 28px 24px;font-size:14px;">
+        {% for label, url in links %}<a href="{{ url }}" style="color:{{ c.link }};">{{ label }}</a>{% if not loop.last %} &nbsp;·&nbsp; {% endif %}{% endfor %}
+      </td></tr>
+      {% endif %}
+      <tr><td style="padding:18px 28px;border-top:1px solid {{ c.line }};font-size:14px;line-height:1.8;color:{{ c.muted }};">
+        {% if zh %}
+          {% if sender.wechat %}微信：<b style="color:{{ c.ink }};">{{ sender.wechat }}</b><br>{% endif %}
+          {% if sender.phone %}电话：{{ sender.phone }}<br>{% endif %}
+          邮箱：<a href="mailto:{{ sender.email }}" style="color:{{ c.link }};">{{ sender.email }}</a>
+        {% else %}
+          {% if sender.phone %}Call or text {{ sender.phone }}<br>{% endif %}
+          {% if sender.whatsapp %}WhatsApp {{ sender.whatsapp }}<br>{% endif %}
+          <a href="mailto:{{ sender.email }}" style="color:{{ c.link }};">{{ sender.email }}</a>
+        {% endif %}
+      </td></tr>
+      <tr><td style="background:{{ c.soft }};padding:14px 28px;font-size:12px;line-height:1.7;color:#9c8a7c;">
+        {{ sender.name }} · {{ sender.warehouse }}<br>{{ unsubscribe }}
+      </td></tr>
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>

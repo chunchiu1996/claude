@@ -54,6 +54,9 @@ def create_app(test_config=None):
         SMTP_PASSWORD=env("SMTP_PASSWORD", ""),
         SMTP_FROM=env("SMTP_FROM", ""),
         SMTP_STARTTLS=env("SMTP_STARTTLS", "1") != "0",
+        # AI-written marketing emails (Admin → Campaigns → AI drafts). A person approves each one before use.
+        ANTHROPIC_API_KEY=env("ANTHROPIC_API_KEY", ""),
+        EDM_AI_MODEL=env("EDM_AI_MODEL", ""),
         # Chinese seller-recruitment site (/zh/), used as the landing page for email campaigns to
         # Chinese factories and stock owners. Optionally served on its own domain.
         SELLER_SITE_NAME=env("SELLER_SITE_NAME", ""),
@@ -89,6 +92,9 @@ def create_app(test_config=None):
         app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     db.init_app(app)
+    from .edm import draft_command
+
+    app.cli.add_command(draft_command)
     with app.app_context():
         db.init_db()
         if not app.config["SECRET_KEY"]:  # Cloudflare without a SECRET_KEY secret: keep one in the database
@@ -104,7 +110,7 @@ def create_app(test_config=None):
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
         return response
 
-    from . import admin, seller, storefront
+    from . import admin, admin_edm, seller, storefront  # noqa: F401  (admin_edm adds its pages to admin.bp)
 
     app.register_blueprint(storefront.bp)   # English store for US customers, at /
     app.register_blueprint(seller.bp)       # Chinese site for factories / stock owners, at /zh/

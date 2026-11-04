@@ -647,8 +647,10 @@ def campaigns():
                   SUM(status IN ('won')) AS signed, MAX(created_at) AS latest
            FROM inquiries WHERE kind = 'supplier' GROUP BY COALESCE(source, 'direct') ORDER BY latest DESC"""
     ).fetchall()
+    drafts_to_review = db.execute("SELECT COUNT(*) FROM edm_drafts WHERE status = 'review'").fetchone()[0]
     return render_template("admin/campaigns.html", campaign=campaign, landing=landing, email_html=email_html,
-                           seller_home=seller.seller_url("seller.home"), sources=sources)
+                           seller_home=seller.seller_url("seller.home"), sources=sources,
+                           drafts_to_review=drafts_to_review)
 
 
 # ---------------------------------------------------------------- suppliers

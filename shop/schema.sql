@@ -180,3 +180,40 @@ CREATE TABLE IF NOT EXISTS app_settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
 );
+
+-- Marketing emails (EDMs) drafted by AI and reviewed by staff. Nothing can be exported or marked as
+-- sent until a person has approved it; editing an approved draft sends it back for review.
+CREATE TABLE IF NOT EXISTS edm_drafts (
+    id INTEGER PRIMARY KEY,
+    campaign TEXT NOT NULL,          -- utm_campaign on every link, e.g. "spring-tile-2026"
+    audience TEXT NOT NULL CHECK (audience IN ('buyer', 'seller')),
+    brief TEXT,                      -- what staff asked the AI to write
+    subject TEXT NOT NULL DEFAULT '',
+    subject_options TEXT,            -- the AI's other subject lines, one per line
+    preheader TEXT,
+    headline TEXT,
+    intro TEXT,
+    bullets TEXT,                    -- one per line
+    closing TEXT,
+    cta_label TEXT,
+    product_skus TEXT,               -- products featured in a buyer email, one SKU per line
+    ai_notes TEXT,                   -- what the AI says a person should double-check, one per line
+    ai_model TEXT,
+    status TEXT NOT NULL DEFAULT 'review' CHECK (status IN ('review', 'approved', 'rejected', 'sent')),
+    reviewed_by TEXT,
+    review_note TEXT,
+    approved_at TEXT,
+    sent_at TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Review history for each draft: generated, edited, revised by AI, approved, rejected, test sent, sent.
+CREATE TABLE IF NOT EXISTS edm_events (
+    id INTEGER PRIMARY KEY,
+    draft_id INTEGER NOT NULL REFERENCES edm_drafts(id) ON DELETE CASCADE,
+    action TEXT NOT NULL,
+    note TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_edm_events_draft ON edm_events(draft_id);

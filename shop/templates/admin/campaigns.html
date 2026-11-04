@@ -3,8 +3,12 @@
 {% block admin_content %}
 <div class="section-head">
   <h1>Seller campaigns (EDM)</h1>
-  <a class="btn" href="{{ seller_home }}" target="_blank">Open Chinese seller site ↗</a>
+  <div class="actions">
+    <a class="btn btn-primary" href="{{ url_for('admin.campaign_drafts') }}">AI email drafts{% if drafts_to_review %} <span class="badge">{{ drafts_to_review }} to review</span>{% endif %}</a>
+    <a class="btn" href="{{ seller_home }}" target="_blank">Open Chinese seller site ↗</a>
+  </div>
 </div>
+<p class="small">New: <a href="{{ url_for('admin.campaign_drafts') }}">have the AI write an email</a> for US buyers or Chinese factories from your real catalog. You review, edit and approve it before it can be used. The fixed template below still works as before.</p>
 <p class="muted">Recruit Chinese factories and stock owners by email. Each campaign gets its own tracked link, so every application on the Chinese site is labelled with the campaign it came from.</p>
 
 <div class="two-col wide-left">

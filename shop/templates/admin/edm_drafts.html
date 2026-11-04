@@ -1,0 +1,70 @@
+{% extends "admin/_layout.html" %}
+{% block admin_title %}AI email drafts{% endblock %}
+{% block admin_content %}
+<p class="small"><a href="{{ url_for('admin.campaigns') }}">← Campaigns</a></p>
+<div class="section-head">
+  <h1>AI email drafts</h1>
+</div>
+<p class="muted">The AI writes marketing emails from your real products, prices and terms. Nothing can be exported or marked as sent until a person has reviewed and approved it.</p>
+
+<div class="two-col wide-left">
+  <section class="panel">
+    <div class="section-head">
+      <h2 class="h3">Drafts</h2>
+      <form method="get" class="filters">
+        <select name="status" onchange="this.form.submit()" aria-label="Show">
+          <option value="">All ({{ counts.values()|sum }})</option>
+          {% for key, label in statuses.items() %}
+            <option value="{{ key }}" {% if key == status %}selected{% endif %}>{{ label }} ({{ counts.get(key, 0) }})</option>
+          {% endfor %}
+        </select>
+        <noscript><button class="btn btn-sm">Show</button></noscript>
+      </form>
+    </div>
+    <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>Subject</th><th>For</th><th>Campaign</th><th>Status</th><th>Updated</th></tr></thead>
+      {% for d in drafts %}
+        <tr>
+          <td><a href="{{ url_for('admin.campaign_draft', draft_id=d.id) }}">{{ d.subject or "(no subject)" }}</a></td>
+          <td>{{ "Buyers (EN)" if d.audience == 'buyer' else "Factories (中文)" }}</td>
+          <td><code>{{ d.campaign }}</code></td>
+          <td><span class="pill pill-edm-{{ d.status }}">{{ statuses[d.status] }}</span></td>
+          <td class="small muted">{{ d.updated_at[:16] }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="muted">No drafts yet. Ask the AI for one →</td></tr>
+      {% endfor %}
+    </table>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <h2 class="h3">New AI draft</h2>
+    {% if not ai_enabled %}
+    <div class="flash flash-error small">AI drafting is off. Set <code>ANTHROPIC_API_KEY</code> (from console.anthropic.com) in your <code>.env</code>, or as a secret on the Cloudflare Worker, and restart.</div>
+    {% endif %}
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <label class="field"><span>Who is it for?</span>
+        <select name="audience">
+          {% for key, label in audiences.items() %}<option value="{{ key }}" {% if key == form.audience %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select></label>
+      <label class="field"><span>Campaign name (added to every link for tracking)</span>
+        <input name="campaign" value="{{ form.campaign }}" required pattern="[A-Za-z0-9 _\-]+"></label>
+      <label class="field"><span>Brief: what should this email do?</span>
+        <textarea name="brief" rows="5" placeholder="e.g. Spring flooring push for contractors. Feature our waterproof LVP and mention volume pricing.">{{ form.brief }}</textarea></label>
+      <button class="btn btn-primary" {% if not ai_enabled %}disabled{% endif %}>Write draft with AI</button>
+      <p class="small muted">Takes up to a minute. Uses {{ model }}.</p>
+    </form>
+    <h2 class="h3">How review works</h2>
+    <ol class="small">
+      <li>The AI writes the copy from your catalog and lists anything you should double-check.</li>
+      <li>Automatic checks flag prices that don't match the catalog, hidden or sold-out products, placeholders and spammy wording.</li>
+      <li>You edit it, or tell the AI what to change. Send yourself a test.</li>
+      <li>Approve it with your name. Only then can you copy the HTML into your email tool. Editing it later sends it back for review.</li>
+    </ol>
+    <p class="small muted">To have drafts written on a schedule, run <code>flask --app wsgi edm-draft --audience buyer --brief "…"</code> from cron. Each one lands here, and you get an email asking you to review it.</p>
+  </aside>
+</div>
+{% endblock %}
