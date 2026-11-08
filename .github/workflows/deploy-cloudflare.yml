@@ -5,10 +5,9 @@
 # Step-by-step guide: deploy/CLOUDFLARE-WORKERS.md
 name: Deploy to Cloudflare
 
+# Manual only, so nothing goes live by accident while work continues on the branch.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 
 concurrency: deploy-cloudflare
 
@@ -24,11 +23,9 @@ jobs:
         run: |
           if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
             echo "ready=true" >> "$GITHUB_OUTPUT"
-          elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          else
             echo "::error::Add CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID under Settings → Secrets and variables → Actions."
             exit 1
-          else
-            echo "::notice::Not publishing: the Cloudflare secrets aren't set yet (see deploy/CLOUDFLARE-WORKERS.md)."
           fi
       - if: steps.secrets.outputs.ready == 'true'
         uses: actions/checkout@v4

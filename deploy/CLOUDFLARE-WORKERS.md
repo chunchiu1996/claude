@@ -54,9 +54,9 @@ On GitHub, open the repository → **Settings** → **Secrets and variables** �
 
 ### 5. GitHub: publish
 
-1. Merge the shop's branch into `main` (open a pull request and press **Merge**).
-2. Publishing starts by itself. Watch it under **Actions** → **Deploy to Cloudflare** (about 3 minutes).
-   To publish again later, open that workflow and press **Run workflow**.
+1. On GitHub, open the repository → **Actions** → **Deploy to Cloudflare** (left side) → **Run workflow**
+   → pick the shop's branch (`claude/trusting-lovelace-leg9b8`, the repository's default) → **Run workflow**.
+2. It tests the shop, then publishes it (about 3 minutes). A green tick means it's live.
 
 The first publish creates the photo bucket, the database, and the two addresses (with HTTPS certificates).
 
@@ -91,7 +91,7 @@ Press **Deploy** to save. The shop restarts with the new settings within a few s
 
 ## Good to know
 
-- **Updates:** every merge into `main` publishes automatically after the tests pass.
+- **Updates:** publishing is always manual. After any change, run **Deploy to Cloudflare** again.
 - **Backups:** Cloudflare stores the database redundantly and keeps 30 days of history. For your own copy,
   use **Admin → Products → Export CSV**.
 - **Upload limits:** spreadsheets and .zip files up to 25 MB each (a 20,000-row product list is about 1.5 MB).
